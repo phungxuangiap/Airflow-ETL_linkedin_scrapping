@@ -1,0 +1,24 @@
+# This file contains configuration settings for various websites used in the project.
+# Each site has its own section with relevant parameters.
+
+linkedin:
+  login_page_url: "https://www.linkedin.com/uas/login"
+  list_job_url: "https://www.linkedin.com/jobs/collections/recommended/"
+  job_details_path_url: "https://www.linkedin.com/jobs/collections/recommended/?currentJobId="
+  job_entrypoint: "job-card-container"
+  job_description_entrypoint: "jobs-description-content"
+  env_user_key: "LINKEDIN_USER" 
+  env_pass_key: "LINKEDIN_PASS"
+  step_pagination: 300
+  pagination_query_param: "start"
+  type: "SPA"
+
+# itviet:
+#   login_page_url: null
+#   list_job_url: "https://itviec.com/it-jobs"
+#   job_entrypoint: "job-card"
+#   env_user_key: null 
+#   env_pass_key: null
+#   step_pagination: 1
+#   pagination_query_param: "page"
+#   type: "SPA"
