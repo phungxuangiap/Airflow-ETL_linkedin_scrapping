@@ -1,12 +1,10 @@
 from dataclasses import dataclass
-from typing import Optional, List
-
-from models.html_identifier import HTMLIdentifier
+from typing import Optional, List, Any
 
 @dataclass
 class Job:
     """Represents a LinkedIn job posting with extracted information."""
-    identifyers: Optional[HTMLIdentifier]  # HTML element identifiers for scraping
+    identifyers: Optional[Any]  # Deprecated: HTML element identifiers (no longer used)
     title: Optional[str]  # Job title/position name
     company: Optional[str]  # Company name
     company_avatar_url: Optional[str]  # URL to company logo/avatar image

@@ -2,6 +2,8 @@ from dataclasses import dataclass, field, asdict
 from datetime import datetime
 from typing import Optional, List
 
+
+# think to refactor or remove that.
 @dataclass
 class ScrappedObject:
     list_job_url: str
