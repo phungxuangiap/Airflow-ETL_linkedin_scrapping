@@ -58,7 +58,7 @@ with DAG(
     )
     
     upload_bronze_layer = PythonOperator(
-        task_id='upload_to_bronze_layer',
+        task_id='upload_to_bronze',
         python_callable=upload_to_bronze_layer,
         op_kwargs={
             'api_source_dir': '/project_root/tmp/api_sources',

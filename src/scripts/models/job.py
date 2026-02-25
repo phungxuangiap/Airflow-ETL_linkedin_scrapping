@@ -20,16 +20,3 @@ class Job:
     level: Optional[str] = None  # Seniority level (Entry, Mid, Senior, etc.)
     def __post_init__(self):
         pass
-    def to_json(self):
-        return {
-            "title": self.title,
-            "company": self.company,
-            "company_avatar_url": self.company_avatar_url,
-            "company_location": self.company_location,
-            "location_working_type": self.location_working_type,
-            "working_type": self.working_type,
-            "date_posted": self.date_posted,
-            "number_applicants": self.number_applicants,
-            "job_url": self.job_url,
-            "description": self.description
-        }
