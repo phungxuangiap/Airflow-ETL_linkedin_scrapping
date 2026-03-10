@@ -28,7 +28,7 @@ default_args = {
 
 
 with DAG(
-    dag_id='collects_data_and_load_to_lakehouse',
+    dag_id='collects_data_and_load_to_lakehous_02',
     default_args=default_args,
     start_date=datetime(2026, 1, 15),
     schedule='@daily',

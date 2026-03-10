@@ -101,7 +101,6 @@ def generate_scrapped_files(base_path=None):
                    If None, uses /project_root/tmp/scrapping_script (Docker) or local path
     """
     if base_path is None:
-        import os
         if os.path.exists('/project_root'):
             base_path = '/project_root/tmp/scrapping_script'
         else:
@@ -116,9 +115,10 @@ def generate_scrapped_files(base_path=None):
     
     filepath = Path(base_path) / f"linkedin_jobs_scrapped_{timestamp_str}.jsonl"
     
-    # Write as JSON array (multiple lines formatted)
+    # Write as JSONL format (one JSON object per line)
     with open(filepath, 'w', encoding='utf-8') as f:
-        f.write(json.dumps(jobs, ensure_ascii=False, indent=4))
+        for job in jobs:
+            f.write(json.dumps(job, ensure_ascii=False) + '\n')
     
     # Get file size in bytes
     timestamp = datetime.now().isoformat()

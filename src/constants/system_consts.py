@@ -78,3 +78,72 @@ GEMINI_JOB_URL_EXTRACTION_PROMPT = '''
 
     Input HTML:
 '''
+TECH_LIST = [
+    # Programming Languages
+    'python', 'java', 'c++', 'c#', 'javascript', 'typescript', 'go', 'rust', 'kotlin', 'swift', 
+    'php', 'ruby', 'r', 'scala', 'matlab', 'groovy', 'perl',
+    
+    # Web Development
+    'html', 'css', 'react', 'angular', 'vue', 'svelte', 'nodejs', 'express', 'django', 'flask',
+    'fastapi', 'spring boot', 'asp.net', 'rails', 'laravel', 'webpack', 'babel',
+    
+    # Data & Analytics
+    'sql', 'spark', 'hadoop', 'kafka', 'elasticsearch', 'pandas', 'numpy', 'scikit-learn',
+    'dbt', 'airflow', 'prefect', 'snowflake', 'bigquery', 'redshift', 'hive', 'presto',
+    
+    # AI/Machine Learning
+    'tensorflow', 'pytorch', 'keras', 'scikit-learn', 'nlp', 'computer vision', 'deep learning',
+    'llm', 'bert', 'transformers', 'hugging face', 'xgboost', 'lightgbm',
+    
+    # DevOps & Infrastructure
+    'docker', 'kubernetes', 'jenkins', 'gitlab-ci', 'github actions', 'circleci', 'terraform',
+    'ansible', 'prometheus', 'grafana', 'elk stack', 'datadog', 'newrelic', 'linux',
+    
+    # Cloud Platforms
+    'aws', 'azure', 'gcp', 'ec2', 's3', 'lambda', 'rds', 'dynamodb', 'cloudformation',
+    'aks', 'app service', 'cosmos db', 'gce', 'cloud storage', 'bigquery', 'cloud dataflow',
+    
+    # Database & Storage
+    'postgresql', 'mysql', 'mongodb', 'redis', 'cassandra', 'dynamodb', 'neo4j', 'firebase',
+    'memcached', 'duckdb', 'influxdb', 'timescaledb',
+    
+    # Embedded & IoT
+    'embedded systems', 'rtos', 'arm', 'avr', 'pic', 'fpga', 'verilog', 'vhdl',
+    'micropython', 'arduino', 'esp32', 'raspberry pi', 'iot', 'mqtt', 'can bus',
+    
+    # Mobile Development
+    'swift', 'kotlin', 'react native', 'flutter', 'dart', 'objective-c', 'android',
+    'ios', 'xamarin', 'ionic', 'expo',
+    
+    # Game Development
+    'unity', 'unreal engine', 'godot', 'cocos2d', 'game physics', 'game design',
+    'directx', 'opengl', 'vulkan', 'shaders',
+    
+    # DevTools & Version Control
+    'git', 'github', 'gitlab', 'bitbucket', 'svn', 'jira', 'trello', 'notion',
+    'vscode', 'intellij', 'visual studio', 'postman', 'insomnia',
+    
+    # Testing & Quality
+    'junit', 'pytest', 'mocha', 'jest', 'selenium', 'cypress', 'postman', 'jmeter',
+    'sonarqube', 'coverage', 'tdd', 'bdd',
+    
+    # Message Queues & Streaming
+    'rabbitmq', 'kafka', 'activemq', 'aws sqs', 'pubsub', 'nats', 'zeromq', 'pulsar',
+    
+    # API & Integration
+    'rest', 'graphql', 'grpc', 'soap', 'webhooks', 'oauth', 'jwt', 'saml',
+    
+    # Security
+    'encryption', 'ssl/tls', 'oauth', 'jwt', 'kerberos', 'ldap', 'penetration testing',
+    
+    # Big Data & Analytics
+    'big data', 'mapreduce', 'pig', 'hive', 'spark', 'flink', 'storm', 'tableau', 'power bi',
+    
+    # Other Tools & Frameworks
+    'docker compose', 'swagger', 'openapi', 'protobuf', 'grpc', 'soap', 'xml', 'json',
+    'yaml', 'toml', 'markdown', 'latex',
+]
+
+ROLE_LIST = ['software', 'data', 'devops', 'qa', 'security', 'mobile', 'game', 'embedded', 'cloud', 'fullstack', 'frontend', 'backend',
+             'ai', 'ml', 'nlp', 'computer vision', 'analytics', 'business intelligence', 'database', 'infrastructure',
+             'network', 'support', 'business analyst', 'product manager', 'project manager', 'designer', 'product owner']

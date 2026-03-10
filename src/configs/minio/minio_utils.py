@@ -216,10 +216,7 @@ def upload_to_bronze_layer(
     
     # Get execution date from Airflow context
     execution_date = context.get('execution_date')
-    if execution_date:
-        load_date = execution_date.strftime('%Y-%m-%d')
-    else:
-        load_date = datetime.now().strftime('%Y-%m-%d')
+    load_date = datetime.now().strftime('%Y-%m-%d')
     
     logger.info(f"Uploading data to bronze layer with load_date={load_date}")
     

@@ -308,7 +308,6 @@ def generate_api_files(base_path=None):
     """
     if base_path is None:
         # Try Docker path first, then local path
-        import os
         if os.path.exists('/project_root'):
             base_path = '/project_root/tmp/api_sources'
         else:
@@ -322,9 +321,10 @@ def generate_api_files(base_path=None):
     
     filepath = Path(base_path) / f"linkedin_jobs_api_{timestamp_str}.jsonl"
     
-    # Write as JSON array (multiple lines formatted)
+    # Write as JSONL format (one JSON object per line)
     with open(filepath, 'w', encoding='utf-8') as f:
-        f.write(json.dumps(jobs, ensure_ascii=False, indent=4))
+        for job in jobs:
+            f.write(json.dumps(job, ensure_ascii=False) + '\n')
     
     # Get file size in bytes
     timestamp = datetime.now().isoformat()
