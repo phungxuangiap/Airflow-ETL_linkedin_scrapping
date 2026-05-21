@@ -31,9 +31,17 @@ chmod -R 777 tmp/ logs/ 2>/dev/null || true
 
 # Load production environment variables
 if [ -f .env.prod ]; then
-    set -a
-    . ./.env.prod
-    set +a
+    while IFS= read -r line || [ -n "$line" ]; do
+        case "$line" in
+            ''|'#'*) continue ;;
+        esac
+
+        key="${line%%=*}"
+        value="${line#*=}"
+        value="${value%%#*}"
+        value="${value%"${value##*[![:space:]]}"}"
+        export "$key=$value"
+    done < .env.prod
     echo "✅ Loaded .env.prod"
 else
     echo "❌ .env.prod not found"
