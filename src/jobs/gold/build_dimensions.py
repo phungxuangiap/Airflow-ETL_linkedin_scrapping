@@ -4,14 +4,33 @@ Build dimension tables for Gold layer Star Schema
 from datetime import datetime, timedelta
 from typing import Dict
 import pyarrow as pa
-import pyarrow.compute as pc
 
 from src.utils.logger import get_logger
 from src.utils.iceberg_client import get_iceberg_client
 from src.utils.duckdb_client import DuckDBClient
-from src.constants.table_names import SILVER_JOBS, SILVER_COMPANIES
+from src.jobs.gold.load_star_schema import load_dimension_table
+from src.constants.table_names import (
+    SILVER_JOBS,
+    SILVER_COMPANIES,
+    GOLD_DIM_COMPANY,
+    GOLD_DIM_LOCATION,
+    GOLD_DIM_DATE,
+    GOLD_DIM_SOURCE,
+    GOLD_DIM_ROLE,
+    GOLD_DIM_LEVEL,
+    GOLD_DIM_WORKING_MODEL,
+    GOLD_DIM_TECHSTACK,
+)
 
 logger = get_logger(__name__)
+
+
+def register_silver_table(client: DuckDBClient, table_name: str, view_name: str) -> None:
+    table = get_iceberg_client().load_table(table_name)
+    if table is None:
+        raise ValueError(f"Table {table_name} does not exist")
+
+    client.connect().register(view_name, table.scan().to_arrow())
 
 
 def build_dim_company() -> pa.Table:
@@ -19,19 +38,18 @@ def build_dim_company() -> pa.Table:
     logger.info("Building dim_company")
 
     with DuckDBClient() as client:
-        query = f"""
+        register_silver_table(client, SILVER_COMPANIES, "silver_companies")
+        query = """
             SELECT DISTINCT
                 id,
                 name,
                 location,
                 industry,
-                CAST(
-                    CASE
-                        WHEN company_size LIKE '%-%' THEN CAST(SPLIT_PART(company_size, '-', 1) AS INTEGER)
-                        ELSE 0
-                    END AS INTEGER
+                COALESCE(
+                    TRY_CAST(REPLACE(SPLIT_PART(company_size, '-', 1), ',', '') AS INTEGER),
+                    0
                 ) as company_size
-            FROM iceberg_scan('{SILVER_COMPANIES}')
+            FROM silver_companies
             WHERE id != 'Unknown'
         """
         return client.fetch_arrow_table(query)
@@ -88,11 +106,12 @@ def build_dim_source() -> pa.Table:
     logger.info("Building dim_source")
 
     with DuckDBClient() as client:
-        query = f"""
+        register_silver_table(client, SILVER_JOBS, "silver_jobs")
+        query = """
             SELECT DISTINCT
                 MD5(source_name) as id,
                 source_name
-            FROM iceberg_scan('{SILVER_JOBS}')
+            FROM silver_jobs
             WHERE source_name != 'Unknown'
         """
         return client.fetch_arrow_table(query)
@@ -103,13 +122,14 @@ def build_dim_role() -> pa.Table:
     logger.info("Building dim_role")
 
     with DuckDBClient() as client:
-        query = f"""
+        register_silver_table(client, SILVER_JOBS, "silver_jobs")
+        query = """
             SELECT DISTINCT
                 MD5(role_item) as id,
                 role_item as role_name
             FROM (
                 SELECT UNNEST(role) as role_item
-                FROM iceberg_scan('{SILVER_JOBS}')
+                FROM silver_jobs
                 WHERE role IS NOT NULL AND len(role) > 0
             )
         """
@@ -121,11 +141,12 @@ def build_dim_level() -> pa.Table:
     logger.info("Building dim_level")
 
     with DuckDBClient() as client:
-        query = f"""
+        register_silver_table(client, SILVER_JOBS, "silver_jobs")
+        query = """
             SELECT DISTINCT
                 MD5(level) as id,
                 level as level_name
-            FROM iceberg_scan('{SILVER_JOBS}')
+            FROM silver_jobs
             WHERE level != 'Unknown'
         """
         return client.fetch_arrow_table(query)
@@ -136,11 +157,12 @@ def build_dim_working_model() -> pa.Table:
     logger.info("Building dim_working_model")
 
     with DuckDBClient() as client:
-        query = f"""
+        register_silver_table(client, SILVER_JOBS, "silver_jobs")
+        query = """
             SELECT DISTINCT
                 MD5(location_type) as id,
                 location_type as name
-            FROM iceberg_scan('{SILVER_JOBS}')
+            FROM silver_jobs
             WHERE location_type != 'N/A'
         """
         return client.fetch_arrow_table(query)
@@ -151,7 +173,8 @@ def build_dim_techstack() -> pa.Table:
     logger.info("Building dim_techstack")
 
     with DuckDBClient() as client:
-        query = f"""
+        register_silver_table(client, SILVER_JOBS, "silver_jobs")
+        query = """
             SELECT DISTINCT
                 MD5(tech_item) as id,
                 tech_item as tech_name,
@@ -165,7 +188,7 @@ def build_dim_techstack() -> pa.Table:
                 END as category
             FROM (
                 SELECT UNNEST(techstacks) as tech_item
-                FROM iceberg_scan('{SILVER_JOBS}')
+                FROM silver_jobs
                 WHERE techstacks IS NOT NULL AND len(techstacks) > 0
             )
         """
@@ -191,25 +214,15 @@ def run(**context) -> Dict[str, int]:
     dim_techstack = build_dim_techstack()
 
     result = {
-        'dim_company': dim_company.num_rows,
-        'dim_location': dim_location.num_rows,
-        'dim_date': dim_date.num_rows,
-        'dim_source': dim_source.num_rows,
-        'dim_role': dim_role.num_rows,
-        'dim_level': dim_level.num_rows,
-        'dim_working_model': dim_working_model.num_rows,
-        'dim_techstack': dim_techstack.num_rows,
+        'dim_company': load_dimension_table(GOLD_DIM_COMPANY, dim_company),
+        'dim_location': load_dimension_table(GOLD_DIM_LOCATION, dim_location),
+        'dim_date': load_dimension_table(GOLD_DIM_DATE, dim_date),
+        'dim_source': load_dimension_table(GOLD_DIM_SOURCE, dim_source),
+        'dim_role': load_dimension_table(GOLD_DIM_ROLE, dim_role),
+        'dim_level': load_dimension_table(GOLD_DIM_LEVEL, dim_level),
+        'dim_working_model': load_dimension_table(GOLD_DIM_WORKING_MODEL, dim_working_model),
+        'dim_techstack': load_dimension_table(GOLD_DIM_TECHSTACK, dim_techstack),
     }
-
-    # Store in XCom for next task
-    context['ti'].xcom_push(key='dim_company', value=dim_company)
-    context['ti'].xcom_push(key='dim_location', value=dim_location)
-    context['ti'].xcom_push(key='dim_date', value=dim_date)
-    context['ti'].xcom_push(key='dim_source', value=dim_source)
-    context['ti'].xcom_push(key='dim_role', value=dim_role)
-    context['ti'].xcom_push(key='dim_level', value=dim_level)
-    context['ti'].xcom_push(key='dim_working_model', value=dim_working_model)
-    context['ti'].xcom_push(key='dim_techstack', value=dim_techstack)
 
     logger.info(f"Dimension tables built: {result}")
 

@@ -6,10 +6,20 @@ from typing import Dict
 import pyarrow as pa
 
 from src.utils.logger import get_logger
+from src.utils.iceberg_client import get_iceberg_client
 from src.utils.duckdb_client import DuckDBClient
-from src.constants.table_names import SILVER_JOBS
+from src.jobs.gold.load_star_schema import load_fact_table
+from src.constants.table_names import SILVER_JOBS, GOLD_FACT_HIRING, GOLD_BRIDGE_TECH_FACT
 
 logger = get_logger(__name__)
+
+
+def register_silver_jobs(client: DuckDBClient) -> None:
+    table = get_iceberg_client().load_table(SILVER_JOBS)
+    if table is None:
+        raise ValueError(f"Table {SILVER_JOBS} does not exist")
+
+    client.connect().register("silver_jobs", table.scan().to_arrow())
 
 
 def build_fact_hiring(load_date: str = None) -> pa.Table:
@@ -28,6 +38,7 @@ def build_fact_hiring(load_date: str = None) -> pa.Table:
     logger.info(f"Building fact_hiring for {load_date}")
 
     with DuckDBClient() as client:
+        register_silver_jobs(client)
         query = f"""
             SELECT
                 MD5(job_url) as id,
@@ -50,7 +61,7 @@ def build_fact_hiring(load_date: str = None) -> pa.Table:
                 CAST(0 AS INTEGER) as salary_max_vnd,
                 number_applicants as number_of_applicants,
                 'ACTIVE' as job_status
-            FROM iceberg_scan('{SILVER_JOBS}')
+            FROM silver_jobs
             WHERE CAST(processed_at AS DATE) = DATE '{load_date}'
         """
 
@@ -76,6 +87,7 @@ def build_bridge_tech_fact(load_date: str = None) -> pa.Table:
     logger.info(f"Building bridge_tech_fact for {load_date}")
 
     with DuckDBClient() as client:
+        register_silver_jobs(client)
         query = f"""
             SELECT
                 MD5(tech_item) as techstack_id,
@@ -84,7 +96,7 @@ def build_bridge_tech_fact(load_date: str = None) -> pa.Table:
                 SELECT
                     job_url,
                     UNNEST(techstacks) as tech_item
-                FROM iceberg_scan('{SILVER_JOBS}')
+                FROM silver_jobs
                 WHERE CAST(processed_at AS DATE) = DATE '{load_date}'
                   AND techstacks IS NOT NULL
                   AND len(techstacks) > 0
@@ -114,14 +126,10 @@ def run(load_date: str = None, **context) -> Dict[str, int]:
     bridge_tech_fact = build_bridge_tech_fact(load_date)
 
     result = {
-        'fact_hiring': fact_hiring.num_rows,
-        'bridge_tech_fact': bridge_tech_fact.num_rows,
+        'fact_hiring': load_fact_table(GOLD_FACT_HIRING, fact_hiring),
+        'bridge_tech_fact': load_fact_table(GOLD_BRIDGE_TECH_FACT, bridge_tech_fact),
         'timestamp': datetime.now().isoformat()
     }
-
-    # Store in XCom for next task
-    context['ti'].xcom_push(key='fact_hiring', value=fact_hiring)
-    context['ti'].xcom_push(key='bridge_tech_fact', value=bridge_tech_fact)
 
     logger.info(f"Fact tables built: {result}")
 

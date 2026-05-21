@@ -53,7 +53,7 @@ docker_config = {
 
 # Define DAG
 with DAG(
-    'linkedin_jobs_pipeline_docker_v03',
+    'linkedin_jobs_pipeline_docker_v08',
     default_args=default_args,
     description='LinkedIn Jobs ETL Pipeline using Docker Operator',
     schedule_interval='0 2 * * *',  # Daily at 2 AM
