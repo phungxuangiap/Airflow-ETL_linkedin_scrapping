@@ -31,7 +31,9 @@ chmod -R 777 tmp/ logs/ 2>/dev/null || true
 
 # Load production environment variables
 if [ -f .env.prod ]; then
-    export $(cat .env.prod | grep -v '^#' | xargs)
+    set -a
+    . ./.env.prod
+    set +a
     echo "✅ Loaded .env.prod"
 else
     echo "❌ .env.prod not found"
