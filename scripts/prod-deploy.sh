@@ -63,7 +63,6 @@ elif command -v docker-compose >/dev/null 2>&1; then
     COMPOSE_CMD="sudo docker-compose"
 else
     echo "Installing Docker Compose..."
-    sudo dnf install -y curl
     sudo curl -L "https://github.com/docker/compose/releases/download/v2.29.7/docker-compose-linux-x86_64" -o /usr/local/bin/docker-compose
     sudo chmod +x /usr/local/bin/docker-compose
     COMPOSE_CMD="sudo docker-compose"
