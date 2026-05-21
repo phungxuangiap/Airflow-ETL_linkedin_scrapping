@@ -7,6 +7,8 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 cd "$PROJECT_ROOT"
 
+DOCKER="${DOCKER:-sudo docker}"
+
 echo "🔍 Running health checks..."
 
 # Colors for output
@@ -43,7 +45,7 @@ echo -e "${YELLOW}=== Infrastructure Services ===${NC}"
 check_service "MinIO" "http://localhost:9000/minio/health/live"
 
 # Check PostgreSQL (Iceberg catalog)
-if docker exec postgres-iceberg pg_isready -U iceberg > /dev/null 2>&1; then
+if $DOCKER exec postgres-iceberg pg_isready -U iceberg > /dev/null 2>&1; then
     echo -e "${GREEN}✅ PostgreSQL (Iceberg) is healthy${NC}"
 else
     echo -e "${RED}❌ PostgreSQL (Iceberg) is not healthy${NC}"
@@ -56,7 +58,7 @@ echo -e "${YELLOW}=== Airflow Services ===${NC}"
 check_service "Airflow Webserver" "http://localhost:8080/health"
 
 # Check PostgreSQL (Airflow metadata)
-if docker exec airflow-postgres pg_isready -U airflow > /dev/null 2>&1; then
+if $DOCKER exec airflow-postgres pg_isready -U airflow > /dev/null 2>&1; then
     echo -e "${GREEN}✅ PostgreSQL (Airflow) is healthy${NC}"
 else
     echo -e "${RED}❌ PostgreSQL (Airflow) is not healthy${NC}"

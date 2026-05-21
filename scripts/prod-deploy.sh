@@ -48,30 +48,41 @@ else
     exit 1
 fi
 
+# Ensure Docker is installed and running
+if ! command -v docker >/dev/null 2>&1; then
+    echo "Installing Docker..."
+    sudo dnf install -y docker
+fi
+
+sudo systemctl enable docker
+sudo systemctl start docker
+
+DOCKER="sudo docker"
+
 # Build ETL Docker image
 echo "🔨 Building ETL Docker image..."
-docker build -f Dockerfile.etl -t linkedin-etl:latest .
+$DOCKER build -f Dockerfile.etl -t linkedin-etl:latest .
 
 # Stop existing services
 echo "🛑 Stopping existing services..."
-docker compose -f docker/airflow/docker-compose.yml down
-docker compose -f docker/infrastructure/docker-compose.yml down
+$DOCKER compose -f docker/airflow/docker-compose.yml down
+$DOCKER compose -f docker/infrastructure/docker-compose.yml down
 
 # Pull latest Docker images
 echo "🐳 Pulling Docker images..."
-docker compose -f docker/infrastructure/docker-compose.yml pull
-docker compose -f docker/airflow/docker-compose.yml pull
+$DOCKER compose -f docker/infrastructure/docker-compose.yml pull
+$DOCKER compose -f docker/airflow/docker-compose.yml pull
 
 # Start infrastructure first
 echo "🚀 Starting infrastructure services..."
-docker compose -f docker/infrastructure/docker-compose.yml up -d
+$DOCKER compose -f docker/infrastructure/docker-compose.yml up -d
 
 echo "⏳ Waiting for infrastructure..."
 sleep 10
 
 # Start Airflow
 echo "🚀 Starting Airflow services..."
-docker compose -f docker/airflow/docker-compose.yml up -d
+$DOCKER compose -f docker/airflow/docker-compose.yml up -d
 
 # Wait for services to be healthy
 echo "⏳ Waiting for services to be ready..."
@@ -86,7 +97,7 @@ echo "✅ Deployment completed successfully!"
 echo ""
 echo "📊 Service status:"
 echo "Infrastructure:"
-docker compose -f docker/infrastructure/docker-compose.yml ps
+$DOCKER compose -f docker/infrastructure/docker-compose.yml ps
 echo ""
 echo "Airflow:"
-docker compose -f docker/airflow/docker-compose.yml ps
+$DOCKER compose -f docker/airflow/docker-compose.yml ps
