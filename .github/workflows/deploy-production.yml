@@ -34,7 +34,10 @@ jobs:
             set -e
 
             echo "🚀 Starting deployment..."
-
+            if ! command -v git >/dev/null 2>&1; then       
+              echo "Installing git..."                      
+              sudo dnf install -y git                       
+            fi  
             # Navigate to project directory
             cd $PROJECT_DIR || exit 1
 
