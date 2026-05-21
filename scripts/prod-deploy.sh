@@ -13,11 +13,11 @@ BRANCH="main"
 # Navigate to project directory
 cd $PROJECT_DIR || exit 1
 
-# Pull latest code
-echo "📥 Pulling latest code from $BRANCH..."
-git fetch origin
+# Sync latest code
+echo "📥 Syncing latest code from $BRANCH..."
+git fetch origin $BRANCH
 git checkout $BRANCH
-git pull origin $BRANCH
+git reset --hard origin/$BRANCH
 
 # Create necessary directories
 echo "📁 Creating directories..."

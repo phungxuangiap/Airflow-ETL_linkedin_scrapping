@@ -48,11 +48,11 @@ jobs:
               rm -rf "$PROJECT_DIR"
               git clone "$REPO_URL" "$PROJECT_DIR"
             else
-              echo "📥 Pulling latest code..."
+              echo "📥 Syncing latest code..."
               cd "$PROJECT_DIR"
-              git fetch origin
+              git fetch origin main
               git checkout main
-              git pull origin main
+              git reset --hard origin/main
             fi
 
             cd "$PROJECT_DIR"
