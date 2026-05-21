@@ -111,6 +111,7 @@ sleep 15
 
 # Run health check
 echo "🔍 Running health check..."
+chmod +x scripts/health-check.sh
 ./scripts/health-check.sh
 
 echo ""
