@@ -1,101 +1,214 @@
-# AI-Powered LinkedIn Job Intelligence Lakehouse
+# LinkedIn Jobs ETL Pipeline
 
-## 🧠 Project Description
-This project builds a fully automated data engineering pipeline to collect, process, and analyze job market data from platforms such as LinkedIn, Glassdoor, and others. It addresses the limitations of traditional scraping approaches by leveraging Large Language Models (LLMs) to intelligently extract and standardize information from unstructured HTML sources.
+A production-ready ETL pipeline for scraping LinkedIn job postings, transforming data through Bronze → Silver → Gold layers, and serving analytics to Power BI.
 
-Instead of relying on fragile CSS selectors or hardcoded parsing logic, the system uses AI-driven agents to understand and transform raw web content into structured, analytics-ready datasets.
+## Architecture
 
----
+```
+Data Sources (LinkedIn)
+    ↓
+Bronze Layer (Raw Data - MinIO/S3)
+    ↓
+Silver Layer (Cleaned & Standardized - Iceberg)
+    ↓
+Gold Layer (Analytics & Aggregations - Iceberg)
+    ↓
+Power BI Reports
+```
 
-## 🎯 Objectives
-- Automate job data collection across multiple platforms
-- Eliminate dependency on brittle scraping techniques
-- Standardize heterogeneous job data into a unified schema
-- Enable scalable analytics and insights on job market trends
-- Integrate AI as a core component in the data processing pipeline
+## Tech Stack
 
----
+- **Orchestration**: Apache Airflow
+- **Data Processing**: DuckDB, PyArrow
+- **Lakehouse**: Apache Iceberg
+- **Storage**: MinIO (S3-compatible)
+- **Containerization**: Docker, Docker Compose
 
-## 🏗️ System Architecture (Medallion Architecture)
+## Project Structure
 
-### 🔹 Bronze Layer (Raw Data)
-- Stores raw HTML content and metadata from scraping jobs
-- Data is ingested without transformation
-- Storage: MinIO (object storage)
-- Purpose: Preserve original data for traceability and reprocessing
+```
+linkedin-jobs-etl/
+├── .github/workflows/          # CI/CD pipelines
+├── dags/                       # Airflow DAGs
+├── src/
+│   ├── jobs/                   # ETL job modules
+│   │   ├── bronze/            # Data extraction & loading
+│   │   ├── silver/            # Cleaning & transformation
+│   │   └── gold/              # Aggregation & analytics
+│   ├── configs/               # Configuration modules
+│   ├── utils/                 # Utility functions
+│   ├── models/                # Data models & schemas
+│   └── constants/             # Constants & mappings
+├── scripts/                   # Deployment & utility scripts
+├── docker/                    # Docker configurations
+├── config/                    # Service configurations
+└── data_generation/           # Mock data generators
+```
 
-### 🔹 Silver Layer (Cleaned & Structured)
-- LLM agents process raw HTML and extract structured information
-- Data is converted into JSON or Parquet format
-- Schema is standardized across all sources
-- Storage: Apache Iceberg
-- Purpose: Provide clean, queryable datasets
+## Quick Start
 
-### 🔹 Gold Layer (Curated & Analytics)
-- Refined datasets optimized for analytics and reporting
-- Aggregations and business logic applied
-- Query engines: Trino / DuckDB
-- Purpose: Support dashboards, BI tools, and market analysis
+### Local Development
 
----
+1. **Clone the repository**
+```bash
+git clone <your-repo-url>
+cd linkedin-jobs-etl
+```
 
-## 🤖 AI Processing Workflow
+2. **Configure environment**
+```bash
+cp .env.example .env.local
+# Edit .env.local with your settings
+```
 
-### 1. HTML Understanding & Extraction
-- Raw HTML is passed to LLMs
-- Extracts key fields such as:
-  - job_title
-  - company_name
-  - job_location
-  - salary_range
-  - technical_requirements
+3. **Start services**
+```bash
+make local-up
+# or
+./scripts/local-up.sh
+```
 
-### 2. Semantic Schema Mapping
-- Aligns different field names across platforms
-- Example:
-  - "Location" → job_location
-  - "Workplace" → job_location
-- Ensures a unified schema regardless of source
+4. **Access services**
+- Airflow UI: http://localhost:8080 (airflow/airflow)
+- MinIO Console: http://localhost:9001 (minioadmin/minioadmin)
+- Iceberg REST: http://localhost:8181
 
-### 3. Data Validation (Quality Gate)
-- AI verifies logical consistency:
-  - Salary vs experience level
-  - Missing or abnormal values
-- Filters or flags low-quality records
+### Production Deployment
 
----
+1. **Setup EC2 instance**
+```bash
+# SSH into EC2
+ssh ec2-user@your-ec2-ip
 
-## 🛠️ Technology Stack
+# Install Docker & Docker Compose
+sudo yum update -y
+sudo yum install -y docker
+sudo systemctl start docker
+sudo usermod -aG docker ec2-user
 
-### Orchestration
-- Apache Airflow
+# Install Docker Compose
+sudo curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+sudo chmod +x /usr/local/bin/docker-compose
+```
 
-### Data Storage & Lakehouse
-- MinIO (object storage)
-- Apache Iceberg (table format)
+2. **Clone and configure**
+```bash
+sudo mkdir -p /opt/linkedin-jobs-etl
+sudo chown ec2-user:ec2-user /opt/linkedin-jobs-etl
+cd /opt/linkedin-jobs-etl
+git clone <your-repo-url> .
 
-### Data Processing
-- PySpark
-- DuckDB
+cp .env.example .env.prod
+# Edit .env.prod with production settings
+```
 
-### Infrastructure
-- Terraform (Infrastructure as Code)
-- Docker (Debian 13 environment)
+3. **Deploy**
+```bash
+make prod-deploy
+```
 
-### AI Integration
-- OpenAI API / MiMo
-- LangChain or custom AI agent framework
+4. **Setup GitHub Actions**
+- Add secrets to GitHub repository:
+  - `EC2_SSH_PRIVATE_KEY`: Your EC2 SSH private key
+  - `EC2_HOST`: EC2 instance IP/hostname
+  - `EC2_USER`: SSH user (e.g., ec2-user)
 
----
+## Data Pipeline
 
-## ⚙️ Pipeline Flow
+### Bronze Layer
+- Extracts raw data from LinkedIn (API & scraping)
+- Stores in MinIO as JSONL files
+- Partitioned by `load_date`
 
-1. Scraper collects raw HTML from job platforms
-2. Data is stored in Bronze layer (MinIO)
-3. Airflow triggers LLM processing tasks
-4. LLM extracts and standardizes data
-5. Structured data is written to Iceberg tables (Silver)
-6. Aggregations and analytics transformations create Gold datasets
-7. Data is queried via Trino/DuckDB for insights
+### Silver Layer
+- Cleans and standardizes data
+- Deduplicates records
+- Stores in Iceberg tables
+- Partitioned by `processed_at` (jobs) and `source_name` (companies)
 
----
+### Gold Layer
+- Aggregates data for analytics
+- Builds reporting tables for Power BI
+- Includes:
+  - Job analytics by company, title, location
+  - Technology trends
+  - Salary insights
+
+## DAG Schedule
+
+- **Bronze**: Daily @ midnight
+- **Silver**: Triggered after Bronze completion
+- **Gold**: Triggered after Silver completion
+
+## Development
+
+### Available Commands
+```bash
+make help              # Show all available commands
+make local-up          # Start local environment
+make local-down        # Stop local environment
+make health-check      # Run health checks
+make logs              # View service logs
+make ps                # Show service status
+make clean             # Clean up data and volumes
+```
+
+## Monitoring
+
+### Health Checks
+```bash
+make health-check
+```
+
+### View Logs
+```bash
+make logs
+# or specific service
+docker-compose logs -f airflow-webserver
+```
+
+### Service Status
+```bash
+make ps
+```
+
+## Troubleshooting
+
+### Services not starting
+```bash
+# Check logs
+docker-compose logs
+
+# Restart services
+make prod-restart
+```
+
+### Airflow DAG not appearing
+- Check DAG file syntax
+- Verify imports are correct
+- Check Airflow logs: `docker-compose logs airflow-scheduler`
+
+### MinIO connection issues
+- Verify S3_ENDPOINT in .env file
+- Check MinIO is running: `docker-compose ps minio`
+- Test connection: `curl http://localhost:9000/minio/health/live`
+
+## Power BI Integration
+
+1. Install Power BI Desktop
+2. Connect to Iceberg tables via:
+   - Direct Query to PostgreSQL (metadata)
+   - Import from Parquet files in MinIO
+3. Use Gold layer tables for reporting
+
+## Contributing
+
+1. Fork the repository
+2. Create feature branch
+3. Commit changes
+4. Push to branch
+5. Create pull request
+
+## License
+
+MIT License

@@ -1,0 +1,72 @@
+name: Deploy to Production EC2
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Setup SSH
+        uses: webfactory/ssh-agent@v0.8.0
+        with:
+          ssh-private-key: ${{ secrets.EC2_SSH_PRIVATE_KEY }}
+
+      - name: Add EC2 to known hosts
+        run: |
+          mkdir -p ~/.ssh
+          ssh-keyscan -H ${{ secrets.EC2_HOST }} >> ~/.ssh/known_hosts
+
+      - name: Deploy to EC2
+        env:
+          EC2_HOST: ${{ secrets.EC2_HOST }}
+          EC2_USER: ${{ secrets.EC2_USER }}
+          PROJECT_DIR: /opt/linkedin-jobs-etl
+        run: |
+          ssh $EC2_USER@$EC2_HOST << 'EOF'
+            set -e
+
+            echo "🚀 Starting deployment..."
+
+            # Navigate to project directory
+            cd $PROJECT_DIR || exit 1
+
+            # Pull latest code
+            echo "📥 Pulling latest code..."
+            git fetch origin
+            git checkout main
+            git pull origin main
+
+            # Run deployment script
+            echo "🔧 Running deployment script..."
+            chmod +x scripts/prod-deploy.sh
+            ./scripts/prod-deploy.sh
+
+            echo "✅ Deployment completed!"
+          EOF
+
+      - name: Verify deployment
+        env:
+          EC2_HOST: ${{ secrets.EC2_HOST }}
+          EC2_USER: ${{ secrets.EC2_USER }}
+          PROJECT_DIR: /opt/linkedin-jobs-etl
+        run: |
+          ssh $EC2_USER@$EC2_HOST << 'EOF'
+            cd $PROJECT_DIR
+            ./scripts/health-check.sh
+          EOF
+
+      - name: Notify on success
+        if: success()
+        run: echo "✅ Deployment to production successful!"
+
+      - name: Notify on failure
+        if: failure()
+        run: echo "❌ Deployment to production failed!"
