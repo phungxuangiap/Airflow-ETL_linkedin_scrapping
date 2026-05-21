@@ -58,28 +58,28 @@ sudo systemctl enable docker
 sudo systemctl start docker
 
 if sudo docker compose version >/dev/null 2>&1; then
-    COMPOSE_CMD="sudo docker compose"
+    COMPOSE_BIN="docker compose"
 elif command -v docker-compose >/dev/null 2>&1; then
-    COMPOSE_CMD="sudo docker-compose"
+    COMPOSE_BIN="docker-compose"
 else
     echo "Installing Docker Compose..."
     sudo curl -L "https://github.com/docker/compose/releases/download/v2.29.7/docker-compose-linux-x86_64" -o /usr/local/bin/docker-compose
     sudo chmod +x /usr/local/bin/docker-compose
-    COMPOSE_CMD="sudo docker-compose"
+    COMPOSE_BIN="docker-compose"
 fi
+
+DOCKER_GID="$(stat -c '%g' /var/run/docker.sock)"
+AIRFLOW_UID="${AIRFLOW_UID:-50000}"
+export DOCKER_GID AIRFLOW_UID
+echo "🐳 Docker socket group id: $DOCKER_GID"
 
 docker_cmd() {
     sudo docker "$@"
 }
 
 compose_cmd() {
-    $COMPOSE_CMD "$@"
+    sudo env DOCKER_GID="$DOCKER_GID" AIRFLOW_UID="$AIRFLOW_UID" $COMPOSE_BIN "$@"
 }
-
-DOCKER_GID="$(stat -c '%g' /var/run/docker.sock)"
-export DOCKER_GID
-export AIRFLOW_UID="${AIRFLOW_UID:-50000}"
-echo "🐳 Docker socket group id: $DOCKER_GID"
 
 # Build ETL Docker image
 echo "🔨 Building ETL Docker image..."
@@ -113,6 +113,10 @@ compose_cmd -f docker/airflow/docker-compose.yml up -d --force-recreate
 # Wait for services to be healthy
 echo "⏳ Waiting for services to be ready..."
 sleep 15
+
+echo "🐳 Airflow Docker socket access:"
+docker_cmd exec airflow-scheduler id || true
+docker_cmd exec airflow-scheduler ls -l /var/run/docker.sock || true
 
 # Run health check
 echo "🔍 Running health check..."
