@@ -57,32 +57,43 @@ fi
 sudo systemctl enable docker
 sudo systemctl start docker
 
-DOCKER="sudo docker"
+if ! sudo docker compose version >/dev/null 2>&1; then
+    echo "Installing Docker Compose plugin..."
+    sudo dnf install -y docker-compose-plugin
+fi
+
+docker_cmd() {
+    sudo docker "$@"
+}
+
+compose_cmd() {
+    sudo docker compose "$@"
+}
 
 # Build ETL Docker image
 echo "🔨 Building ETL Docker image..."
-$DOCKER build -f Dockerfile.etl -t linkedin-etl:latest .
+docker_cmd build -f Dockerfile.etl -t linkedin-etl:latest .
 
 # Stop existing services
 echo "🛑 Stopping existing services..."
-$DOCKER compose -f docker/airflow/docker-compose.yml down
-$DOCKER compose -f docker/infrastructure/docker-compose.yml down
+compose_cmd -f docker/airflow/docker-compose.yml down
+compose_cmd -f docker/infrastructure/docker-compose.yml down
 
 # Pull latest Docker images
 echo "🐳 Pulling Docker images..."
-$DOCKER compose -f docker/infrastructure/docker-compose.yml pull
-$DOCKER compose -f docker/airflow/docker-compose.yml pull
+compose_cmd -f docker/infrastructure/docker-compose.yml pull
+compose_cmd -f docker/airflow/docker-compose.yml pull
 
 # Start infrastructure first
 echo "🚀 Starting infrastructure services..."
-$DOCKER compose -f docker/infrastructure/docker-compose.yml up -d
+compose_cmd -f docker/infrastructure/docker-compose.yml up -d
 
 echo "⏳ Waiting for infrastructure..."
 sleep 10
 
 # Start Airflow
 echo "🚀 Starting Airflow services..."
-$DOCKER compose -f docker/airflow/docker-compose.yml up -d
+compose_cmd -f docker/airflow/docker-compose.yml up -d
 
 # Wait for services to be healthy
 echo "⏳ Waiting for services to be ready..."
@@ -97,7 +108,7 @@ echo "✅ Deployment completed successfully!"
 echo ""
 echo "📊 Service status:"
 echo "Infrastructure:"
-$DOCKER compose -f docker/infrastructure/docker-compose.yml ps
+compose_cmd -f docker/infrastructure/docker-compose.yml ps
 echo ""
 echo "Airflow:"
-$DOCKER compose -f docker/airflow/docker-compose.yml ps
+compose_cmd -f docker/airflow/docker-compose.yml ps
