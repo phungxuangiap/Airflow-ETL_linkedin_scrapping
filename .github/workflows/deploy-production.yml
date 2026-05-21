@@ -29,25 +29,34 @@ jobs:
           EC2_HOST: ${{ secrets.EC2_HOST }}
           EC2_USER: ${{ secrets.EC2_USER }}
           PROJECT_DIR: /opt/linkedin-jobs-etl
+          REPO_URL: https://github.com/phungxuangiap/Airflow-ETL_linkedin_scrapping.git
         run: |
-          ssh $EC2_USER@$EC2_HOST << 'EOF'
+          ssh $EC2_USER@$EC2_HOST "PROJECT_DIR='$PROJECT_DIR' REPO_URL='$REPO_URL' bash -s" << 'EOF'
             set -e
 
             echo "🚀 Starting deployment..."
-            if ! command -v git >/dev/null 2>&1; then       
-              echo "Installing git..."                      
-              sudo dnf install -y git                       
-            fi  
-            # Navigate to project directory
-            cd $PROJECT_DIR || exit 1
 
-            # Pull latest code
-            echo "📥 Pulling latest code..."
-            git fetch origin
-            git checkout main
-            git pull origin main
+            if ! command -v git >/dev/null 2>&1; then
+              echo "Installing git..."
+              sudo dnf install -y git
+            fi
 
-            # Run deployment script
+            if [ ! -d "$PROJECT_DIR/.git" ]; then
+              echo "📦 Cloning repository..."
+              sudo mkdir -p "$(dirname "$PROJECT_DIR")"
+              sudo chown -R "$USER:$USER" "$(dirname "$PROJECT_DIR")"
+              rm -rf "$PROJECT_DIR"
+              git clone "$REPO_URL" "$PROJECT_DIR"
+            else
+              echo "📥 Pulling latest code..."
+              cd "$PROJECT_DIR"
+              git fetch origin
+              git checkout main
+              git pull origin main
+            fi
+
+            cd "$PROJECT_DIR"
+
             echo "🔧 Running deployment script..."
             chmod +x scripts/prod-deploy.sh
             ./scripts/prod-deploy.sh
@@ -61,8 +70,8 @@ jobs:
           EC2_USER: ${{ secrets.EC2_USER }}
           PROJECT_DIR: /opt/linkedin-jobs-etl
         run: |
-          ssh $EC2_USER@$EC2_HOST << 'EOF'
-            cd $PROJECT_DIR
+          ssh $EC2_USER@$EC2_HOST "PROJECT_DIR='$PROJECT_DIR' bash -s" << 'EOF'
+            cd "$PROJECT_DIR"
             ./scripts/health-check.sh
           EOF
 
