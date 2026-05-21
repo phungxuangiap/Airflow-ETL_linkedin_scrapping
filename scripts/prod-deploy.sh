@@ -19,6 +19,16 @@ git fetch origin
 git checkout $BRANCH
 git pull origin $BRANCH
 
+# Create necessary directories
+echo "📁 Creating directories..."
+mkdir -p data/raw data/bronze data/silver data/gold
+mkdir -p logs/airflow
+mkdir -p tmp/api_sources tmp/scrapping_script
+mkdir -p plugins
+
+# Ensure correct permissions
+chmod -R 777 tmp/ logs/ 2>/dev/null || true
+
 # Load production environment variables
 if [ -f .env.prod ]; then
     export $(cat .env.prod | grep -v '^#' | xargs)

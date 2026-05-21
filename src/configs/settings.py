@@ -22,8 +22,8 @@ class Settings:
     AIRFLOW_DAGS_FOLDER = os.getenv("AIRFLOW_DAGS_FOLDER", f"{AIRFLOW_HOME}/dags")
 
     # Data generation paths (for local development)
-    API_SOURCE_DIR = os.getenv("API_SOURCE_DIR", "/project_root/tmp/api_sources")
-    SCRAPPED_SOURCE_DIR = os.getenv("SCRAPPED_SOURCE_DIR", "/project_root/tmp/scrapping_script")
+    API_SOURCE_DIR = os.getenv("API_SOURCE_DIR", str(TMP_DIR / "api_sources"))
+    SCRAPPED_SOURCE_DIR = os.getenv("SCRAPPED_SOURCE_DIR", str(TMP_DIR / "scrapping_script"))
 
     # Source configuration
     SOURCE_WEB_NAME = os.getenv("SOURCE_WEB_NAME", "linkedin")

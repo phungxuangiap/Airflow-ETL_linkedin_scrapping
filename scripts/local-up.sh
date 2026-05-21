@@ -24,6 +24,9 @@ mkdir -p logs/airflow
 mkdir -p tmp/api_sources tmp/scrapping_script
 mkdir -p plugins
 
+# Ensure correct permissions
+chmod -R 777 tmp/ logs/ 2>/dev/null || true
+
 # Create Docker network if not exists
 echo "🔗 Checking Docker network..."
 if ! docker network ls | grep -q "data-pipeline-network"; then

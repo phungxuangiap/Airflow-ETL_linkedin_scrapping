@@ -18,7 +18,6 @@ default_args = {
     'execution_timeout': timedelta(hours=2),
 }
 
-
 with DAG(
     dag_id='linkedin_jobs_pipeline',
     default_args=default_args,

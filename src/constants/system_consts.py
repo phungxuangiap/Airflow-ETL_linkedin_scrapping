@@ -80,12 +80,12 @@ GEMINI_JOB_URL_EXTRACTION_PROMPT = '''
 '''
 TECH_LIST = [
     # Programming Languages
-    'python', 'java', 'c++', 'c#', 'javascript', 'typescript', 'go', 'rust', 'kotlin', 'swift', 
+    'python', 'java', 'c\\+\\+', 'c#', 'javascript', 'typescript', 'go', 'rust', 'kotlin', 'swift',
     'php', 'ruby', 'r', 'scala', 'matlab', 'groovy', 'perl',
-    
+
     # Web Development
     'html', 'css', 'react', 'angular', 'vue', 'svelte', 'nodejs', 'express', 'django', 'flask',
-    'fastapi', 'spring boot', 'asp.net', 'rails', 'laravel', 'webpack', 'babel',
+    'fastapi', 'spring boot', 'asp\\.net', 'rails', 'laravel', 'webpack', 'babel',
     
     # Data & Analytics
     'sql', 'spark', 'hadoop', 'kafka', 'elasticsearch', 'pandas', 'numpy', 'scikit-learn',

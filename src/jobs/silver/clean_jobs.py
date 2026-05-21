@@ -119,7 +119,7 @@ def clean_scrapped_source_jobs(load_date: str = None) -> Dict[str, pa.Table]:
                     ),
                     'Unknown'
                 ) AS company_id,
-                COALESCE(source, 'linkedin_scraper') as source_name,
+                'linkedin_scraper' as source_name,
                 COALESCE(UPPER(location_working_type), 'N/A') as location_type,
                 COALESCE(working_type, 'Unknown') as employment_type,
                 COALESCE(date_posted, 'Unknown') as date_posted,
@@ -161,7 +161,7 @@ def clean_scrapped_source_jobs(load_date: str = None) -> Dict[str, pa.Table]:
                 'Unknown' as industry,
                 'Unknown' as company_size,
                 COALESCE(company_location, 'Unknown') as location,
-                COALESCE(source, 'linkedin_scraper') as source_name
+                'linkedin_scraper' as source_name
             FROM read_json_auto('{bronze_path}', ignore_errors=true, format='newline_delimited')
         """
 

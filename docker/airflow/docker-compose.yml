@@ -35,6 +35,7 @@ x-airflow-common:
     - ../../data_generation:/opt/airflow/data_generation
     - ../../logs:/opt/airflow/logs
     - ../../plugins:/opt/airflow/plugins
+    - ../../tmp:/opt/airflow/tmp
     - ../../requirements.txt:/opt/airflow/requirements.txt
   user: "${AIRFLOW_UID:-50000}:0"
   depends_on:

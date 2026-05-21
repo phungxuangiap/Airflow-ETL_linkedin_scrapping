@@ -67,4 +67,4 @@ volumes:
 
 networks:
   data-pipeline-network:
-    driver: bridge
+    external: true

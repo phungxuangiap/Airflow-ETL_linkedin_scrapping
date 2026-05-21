@@ -7,9 +7,9 @@ import os
 class IcebergConfig:
     """Iceberg catalog and table configuration"""
 
-    # Iceberg REST catalog settings
-    CATALOG_TYPE = "rest"
-    CATALOG_URI = os.getenv("ICEBERG_CATALOG_URI", "http://iceberg-rest:8181")
+    # Iceberg SQL catalog settings
+    CATALOG_TYPE = "sql"
+    CATALOG_URI = os.getenv("ICEBERG_CATALOG_URI", "postgresql://iceberg:iceberg123@postgres-iceberg:5432/iceberg_catalog")
     CATALOG_NAME = os.getenv("ICEBERG_CATALOG_NAME", "lakehouse")
 
     # S3/MinIO settings
