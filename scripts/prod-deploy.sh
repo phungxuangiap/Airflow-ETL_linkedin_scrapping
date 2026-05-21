@@ -80,6 +80,10 @@ compose_cmd() {
 echo "🔨 Building ETL Docker image..."
 docker_cmd build -f Dockerfile.etl -t linkedin-etl:latest .
 
+# Ensure shared Docker network exists
+echo "🌐 Ensuring Docker network exists..."
+docker_cmd network create data-pipeline-network >/dev/null 2>&1 || true
+
 # Stop existing services
 echo "🛑 Stopping existing services..."
 compose_cmd -f docker/airflow/docker-compose.yml down
