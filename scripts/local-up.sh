@@ -36,6 +36,10 @@ else
     echo "✅ Network already exists"
 fi
 
+# Build ETL Docker image
+echo "🔨 Building ETL Docker image..."
+docker build -f Dockerfile.etl -t linkedin-etl:latest .
+
 # Start infrastructure first
 echo "🐳 Starting infrastructure services..."
 docker compose -f docker/infrastructure/docker-compose.yml up -d

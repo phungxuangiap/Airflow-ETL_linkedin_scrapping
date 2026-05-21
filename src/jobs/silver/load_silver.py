@@ -1,8 +1,6 @@
 from datetime import datetime
 from typing import Dict
 import pyarrow as pa
-from pyiceberg.partitioning import PartitionSpec, PartitionField
-from pyiceberg.transforms import DayTransform, IdentityTransform
 
 from src.utils.logger import get_logger
 from src.utils.iceberg_client import get_iceberg_client
@@ -17,16 +15,9 @@ def load_jobs_to_silver(jobs_table: pa.Table) -> int:
 
     client = get_iceberg_client()
 
-    # Define partition spec for jobs
-    partition_spec = PartitionSpec(
-        PartitionField(source_id=1, field_id=1, transform=DayTransform(), name="processed_at_day")
-    )
-
-    # Get or create table
     table = client.get_or_create_table(
         SILVER_JOBS,
-        schema=jobs_table.schema,
-        partition_spec=partition_spec
+        schema=jobs_table.schema
     )
 
     # Upsert data (delete existing by job_url, then insert)
@@ -42,16 +33,9 @@ def load_companies_to_silver(companies_table: pa.Table) -> int:
 
     client = get_iceberg_client()
 
-    # Define partition spec for companies
-    partition_spec = PartitionSpec(
-        PartitionField(source_id=1, field_id=1, transform=IdentityTransform(), name="source_name")
-    )
-
-    # Get or create table
     table = client.get_or_create_table(
         SILVER_COMPANIES,
-        schema=companies_table.schema,
-        partition_spec=partition_spec
+        schema=companies_table.schema
     )
 
     # Upsert data (delete existing by id, then insert)

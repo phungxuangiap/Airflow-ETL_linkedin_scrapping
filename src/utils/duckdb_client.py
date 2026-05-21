@@ -43,6 +43,7 @@ class DuckDBClient:
             # Install and load extensions
             self.connection.execute("INSTALL httpfs; LOAD httpfs;")
             self.connection.execute("INSTALL json; LOAD json;")
+            self.connection.execute("INSTALL iceberg; LOAD iceberg;")
 
             # Configure S3 settings
             s3_config = duckdb_config.get_s3_config()

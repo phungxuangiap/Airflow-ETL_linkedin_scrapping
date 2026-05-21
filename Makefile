@@ -1,4 +1,4 @@
-.PHONY: help infra-up infra-down airflow-up airflow-down up down restart health-check clean logs ps trigger
+.PHONY: help infra-up infra-down airflow-up airflow-down up down restart health-check clean logs ps trigger rebuild-etl
 
 help:
 	@echo "LinkedIn Jobs ETL - Available Commands"
@@ -8,6 +8,7 @@ help:
 	@echo "  make down           - Stop all services"
 	@echo "  make restart        - Restart all services"
 	@echo "  make trigger        - Trigger the ETL pipeline"
+	@echo "  make rebuild-etl    - Rebuild ETL Docker image (after code changes)"
 	@echo ""
 	@echo "Infrastructure:"
 	@echo "  make infra-up       - Start infrastructure only (MinIO, PostgreSQL)"
@@ -49,6 +50,10 @@ restart:
 trigger:
 	@chmod +x scripts/airflow.sh
 	@./scripts/airflow.sh trigger
+
+rebuild-etl:
+	@chmod +x scripts/rebuild-etl.sh
+	@./scripts/rebuild-etl.sh
 
 # Infrastructure commands
 infra-up:

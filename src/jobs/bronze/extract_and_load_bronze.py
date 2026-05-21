@@ -9,7 +9,7 @@ from src.configs.settings import settings
 logger = get_logger(__name__)
 
 
-def extract_and_load_api_jobs(**context) -> Dict[str, Any]:
+def extract_and_load_api_jobs(load_date: str, **context) -> Dict[str, Any]:
     try:
         # Step 1: Generate/Extract API data
         from data_generation.generate_api_data import generate_api_files
@@ -22,7 +22,6 @@ def extract_and_load_api_jobs(**context) -> Dict[str, Any]:
 
         # Step 2: Upload to Bronze layer immediately
         client = get_minio_client()
-        load_date = datetime.now().strftime('%Y-%m-%d')
 
         file_path = Path(extract_result['filepath'])
         object_name = f"BRONZE/api_data/{settings.ENTITY_TYPE}/load_date={load_date}/{file_path.name}"
@@ -50,7 +49,7 @@ def extract_and_load_api_jobs(**context) -> Dict[str, Any]:
         raise
 
 
-def extract_and_load_scrapped_jobs(**context) -> Dict[str, Any]:
+def extract_and_load_scrapped_jobs(load_date: str, **context) -> Dict[str, Any]:
     try:
         # Step 1: Generate/Extract scrapped data
         from data_generation.generate_scrapped_data import generate_scrapped_files
@@ -63,7 +62,6 @@ def extract_and_load_scrapped_jobs(**context) -> Dict[str, Any]:
 
         # Step 2: Upload to Bronze layer immediately
         client = get_minio_client()
-        load_date = datetime.now().strftime('%Y-%m-%d')
 
         file_path = Path(extract_result['filepath'])
         object_name = f"BRONZE/crawler_data/{settings.SOURCE_WEB_NAME}/{settings.ENTITY_TYPE}/load_date={load_date}/{file_path.name}"
@@ -91,15 +89,18 @@ def extract_and_load_scrapped_jobs(**context) -> Dict[str, Any]:
         raise
 
 
-def run(**context):
-    logger.info("Starting Bronze layer: Extract and Load")
+def run(load_date: str = None, **context):
+    if load_date is None:
+        load_date = context.get('ds') or datetime.now().strftime('%Y-%m-%d')
+
+    logger.info(f"Starting Bronze layer: Extract and Load for load_date={load_date}")
 
     # Extract and load API data
-    api_result = extract_and_load_api_jobs(**context)
+    api_result = extract_and_load_api_jobs(load_date=load_date, **context)
     logger.info(f"API data loaded to Bronze: {api_result['job_count']} jobs")
 
     # Extract and load scrapped data
-    scrapped_result = extract_and_load_scrapped_jobs(**context)
+    scrapped_result = extract_and_load_scrapped_jobs(load_date=load_date, **context)
     logger.info(f"Scrapped data loaded to Bronze: {scrapped_result['job_count']} jobs")
 
     # Combined result

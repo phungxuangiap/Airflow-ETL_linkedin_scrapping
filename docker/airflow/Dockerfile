@@ -8,9 +8,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 USER airflow
 
-# Copy and install requirements
-COPY requirements.txt /requirements.txt
-RUN pip install --no-cache-dir -r /requirements.txt
+# ETL dependencies are now in linkedin-etl container (requirements-etl.txt)
+# Airflow only needs base image + docker provider (already included)
 
-# Set working directory
 WORKDIR /opt/airflow

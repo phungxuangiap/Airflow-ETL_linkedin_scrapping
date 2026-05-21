@@ -38,6 +38,10 @@ else
     exit 1
 fi
 
+# Build ETL Docker image
+echo "🔨 Building ETL Docker image..."
+docker build -f Dockerfile.etl -t linkedin-etl:latest .
+
 # Stop existing services
 echo "🛑 Stopping existing services..."
 docker compose -f docker/airflow/docker-compose.yml down

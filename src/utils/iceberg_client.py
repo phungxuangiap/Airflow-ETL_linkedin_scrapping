@@ -117,6 +117,9 @@ class IcebergClient:
             properties = iceberg_config.get_table_properties()
 
         try:
+            if partition_spec is None:
+                partition_spec = PartitionSpec()
+
             table = self.catalog.create_table(
                 identifier,
                 schema=schema,
