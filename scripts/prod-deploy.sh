@@ -76,6 +76,11 @@ compose_cmd() {
     $COMPOSE_CMD "$@"
 }
 
+DOCKER_GID="$(stat -c '%g' /var/run/docker.sock)"
+export DOCKER_GID
+export AIRFLOW_UID="${AIRFLOW_UID:-50000}"
+echo "🐳 Docker socket group id: $DOCKER_GID"
+
 # Build ETL Docker image
 echo "🔨 Building ETL Docker image..."
 docker_cmd build -f Dockerfile.etl -t linkedin-etl:latest .
@@ -103,7 +108,7 @@ sleep 10
 
 # Start Airflow
 echo "🚀 Starting Airflow services..."
-compose_cmd -f docker/airflow/docker-compose.yml up -d
+compose_cmd -f docker/airflow/docker-compose.yml up -d --force-recreate
 
 # Wait for services to be healthy
 echo "⏳ Waiting for services to be ready..."
