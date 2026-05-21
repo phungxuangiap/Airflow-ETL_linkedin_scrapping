@@ -57,9 +57,16 @@ fi
 sudo systemctl enable docker
 sudo systemctl start docker
 
-if ! sudo docker compose version >/dev/null 2>&1; then
-    echo "Installing Docker Compose plugin..."
-    sudo dnf install -y docker-compose-plugin
+if sudo docker compose version >/dev/null 2>&1; then
+    COMPOSE_CMD="sudo docker compose"
+elif command -v docker-compose >/dev/null 2>&1; then
+    COMPOSE_CMD="sudo docker-compose"
+else
+    echo "Installing Docker Compose..."
+    sudo dnf install -y curl
+    sudo curl -L "https://github.com/docker/compose/releases/download/v2.29.7/docker-compose-linux-x86_64" -o /usr/local/bin/docker-compose
+    sudo chmod +x /usr/local/bin/docker-compose
+    COMPOSE_CMD="sudo docker-compose"
 fi
 
 docker_cmd() {
@@ -67,7 +74,7 @@ docker_cmd() {
 }
 
 compose_cmd() {
-    sudo docker compose "$@"
+    $COMPOSE_CMD "$@"
 }
 
 # Build ETL Docker image
