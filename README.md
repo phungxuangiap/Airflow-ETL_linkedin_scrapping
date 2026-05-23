@@ -1,213 +1,361 @@
 # LinkedIn Jobs ETL Pipeline
 
-A production-ready ETL pipeline for scraping LinkedIn job postings, transforming data through Bronze → Silver → Gold layers, and serving analytics to Power BI.
+A Dockerized ETL pipeline that generates LinkedIn jobs data, loads raw files to a Bronze object-storage layer, transforms the data into Silver Apache Iceberg tables, and builds Gold dimensional/fact tables for analytics.
 
 ## Architecture
 
+```text
+Generated LinkedIn API + crawler data
+    ↓
+Bronze: JSONL files in MinIO/S3
+    ↓
+Silver: cleaned/deduplicated Apache Iceberg tables
+    ↓
+Gold: dimensional + fact Apache Iceberg tables
+    ↓
+BI / analytics consumers
 ```
-Data Sources (LinkedIn)
-    ↓
-Bronze Layer (Raw Data - MinIO/S3)
-    ↓
-Silver Layer (Cleaned & Standardized - Iceberg)
-    ↓
-Gold Layer (Analytics & Aggregations - Iceberg)
-    ↓
-Power BI Reports
-```
+
+The project separates orchestration dependencies from ETL dependencies:
+
+- Airflow runs in its own Docker image.
+- ETL jobs run in `linkedin-etl:latest` through Airflow `DockerOperator`.
+- MinIO provides S3-compatible storage.
+- PostgreSQL stores Airflow metadata and the Iceberg SQL catalog metadata.
 
 ## Tech Stack
 
 - **Orchestration**: Apache Airflow
-- **Data Processing**: DuckDB, PyArrow
-- **Lakehouse**: Apache Iceberg
-- **Storage**: MinIO (S3-compatible)
-- **Containerization**: Docker, Docker Compose
+- **Task runtime**: DockerOperator + `linkedin-etl:latest`
+- **Processing**: Python, DuckDB, PyArrow
+- **Lakehouse tables**: Apache Iceberg via PyIceberg
+- **Object storage**: MinIO / S3-compatible storage
+- **Metadata stores**: PostgreSQL
+- **Deployment**: Docker Compose, GitHub Actions, EC2
 
 ## Project Structure
 
-```
-linkedin-jobs-etl/
-├── .github/workflows/          # CI/CD pipelines
-├── dags/                       # Airflow DAGs
+```text
+.
+├── .github/workflows/          # GitHub Actions deployment workflows
+├── dags/                       # Airflow DAG definitions
+├── data_generation/            # Mock API/crawler data generators
+├── docker/
+│   ├── airflow/                # Airflow compose + image
+│   └── infrastructure/         # MinIO + Iceberg catalog Postgres
+├── scripts/                    # Local/prod deploy and health scripts
 ├── src/
-│   ├── jobs/                   # ETL job modules
-│   │   ├── bronze/            # Data extraction & loading
-│   │   ├── silver/            # Cleaning & transformation
-│   │   └── gold/              # Aggregation & analytics
-│   ├── configs/               # Configuration modules
-│   ├── utils/                 # Utility functions
-│   ├── models/                # Data models & schemas
-│   └── constants/             # Constants & mappings
-├── scripts/                   # Deployment & utility scripts
-├── docker/                    # Docker configurations
-├── config/                    # Service configurations
-└── data_generation/           # Mock data generators
+│   ├── configs/                # Runtime config
+│   ├── constants/              # Table names and paths
+│   ├── jobs/
+│   │   ├── bronze/             # Extract and load raw JSONL files
+│   │   ├── silver/             # Clean, deduplicate, write Silver Iceberg
+│   │   └── gold/               # Build and write Gold Iceberg tables
+│   ├── models/                 # Schemas
+│   └── utils/                  # DuckDB, Iceberg, MinIO helpers
+├── Dockerfile.etl              # ETL runtime image
+├── main.py                     # ETL CLI entrypoint
+└── requirements.txt
 ```
 
-## Quick Start
+## Local Development
 
-### Local Development
+### 1. Build the ETL image
 
-1. **Clone the repository**
 ```bash
-git clone <your-repo-url>
-cd linkedin-jobs-etl
+docker build -f Dockerfile.etl -t linkedin-etl:latest .
 ```
 
-2. **Configure environment**
-```bash
-cp .env.example .env.local
-# Edit .env.local with your settings
-```
+### 2. Start services
 
-3. **Start services**
 ```bash
-make local-up
-# or
 ./scripts/local-up.sh
 ```
 
-4. **Access services**
-- Airflow UI: http://localhost:8080 (airflow/airflow)
-- MinIO Console: http://localhost:9001 (minioadmin/minioadmin)
-- Iceberg REST: http://localhost:8181
+Or with Compose directly:
 
-### Production Deployment
-
-1. **Setup EC2 instance**
 ```bash
-# SSH into EC2
-ssh ec2-user@your-ec2-ip
-
-# Install Docker & Docker Compose
-sudo yum update -y
-sudo yum install -y docker
-sudo systemctl start docker
-sudo usermod -aG docker ec2-user
-
-# Install Docker Compose
-sudo curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
-sudo chmod +x /usr/local/bin/docker-compose
+docker compose -f docker/infrastructure/docker-compose.yml up -d
+docker compose -f docker/airflow/docker-compose.yml up -d
 ```
 
-2. **Clone and configure**
-```bash
-sudo mkdir -p /opt/linkedin-jobs-etl
-sudo chown ec2-user:ec2-user /opt/linkedin-jobs-etl
-cd /opt/linkedin-jobs-etl
-git clone <your-repo-url> .
+### 3. Access services
 
-cp .env.example .env.prod
-# Edit .env.prod with production settings
+- Airflow UI: <http://localhost:8080>
+- MinIO Console: <http://localhost:9001>
+- MinIO API: <http://localhost:9000>
+
+Default local credentials are defined in the compose files.
+
+## Running ETL Jobs Manually
+
+The ETL image exposes `main.py` as the container entrypoint.
+
+```bash
+docker run --rm --network data-pipeline-network linkedin-etl:latest \
+  --layer bronze \
+  --load-date 2026-05-21 \
+  --log-level INFO
 ```
 
-3. **Deploy**
 ```bash
-make prod-deploy
+docker run --rm --network data-pipeline-network linkedin-etl:latest \
+  --layer silver \
+  --load-date 2026-05-21 \
+  --log-level INFO
 ```
 
-4. **Setup GitHub Actions**
-- Add secrets to GitHub repository:
-  - `EC2_SSH_PRIVATE_KEY`: Your EC2 SSH private key
-  - `EC2_HOST`: EC2 instance IP/hostname
-  - `EC2_USER`: SSH user (e.g., ec2-user)
-
-## Data Pipeline
-
-### Bronze Layer
-- Extracts raw data from LinkedIn (API & scraping)
-- Stores in MinIO as JSONL files
-- Partitioned by `load_date`
-
-### Silver Layer
-- Cleans and standardizes data
-- Deduplicates records
-- Stores in Iceberg tables
-- Partitioned by `processed_at` (jobs) and `source_name` (companies)
-
-### Gold Layer
-- Aggregates data for analytics
-- Builds reporting tables for Power BI
-- Includes:
-  - Job analytics by company, title, location
-  - Technology trends
-  - Salary insights
-
-## DAG Schedule
-
-- **Bronze**: Daily @ midnight
-- **Silver**: Triggered after Bronze completion
-- **Gold**: Triggered after Silver completion
-
-## Development
-
-### Available Commands
 ```bash
-make help              # Show all available commands
-make local-up          # Start local environment
-make local-down        # Stop local environment
-make health-check      # Run health checks
-make logs              # View service logs
-make ps                # Show service status
-make clean             # Clean up data and volumes
+docker run --rm --network data-pipeline-network linkedin-etl:latest \
+  --layer gold \
+  --step dimensions \
+  --load-date 2026-05-21 \
+  --log-level INFO
 ```
 
-## Monitoring
+Gold steps:
 
-### Health Checks
-```bash
-make health-check
+- `dimensions`
+- `fact`
+- `load`
+- `all`
+
+## Airflow DAG
+
+The Docker DAG is in:
+
+```text
+dags/linkedin_jobs_pipeline_docker_dag.py
 ```
 
-### View Logs
-```bash
-make logs
-# or specific service
-docker-compose logs -f airflow-webserver
+The DAG tasks are:
+
+```text
+bronze_extract_and_load
+    ↓
+silver_transform_and_clean
+    ↓
+gold_build_dimensions
+    ↓
+gold_build_fact_table
+    ↓
+gold_load_star_schema
 ```
 
-### Service Status
+Each task runs `linkedin-etl:latest` through `DockerOperator`.
+
+## Data Layout
+
+### Bronze
+
+Bronze data is written as JSONL files partitioned by `load_date`:
+
+```text
+s3://airflow-bucket/BRONZE/api_data/jobs/load_date=YYYY-MM-DD/*.jsonl
+s3://airflow-bucket/BRONZE/crawler_data/linkedin/jobs/load_date=YYYY-MM-DD/*.jsonl
+```
+
+### Silver
+
+Silver is written as Iceberg tables:
+
+```text
+SILVER.jobs
+SILVER.companies
+```
+
+With the current default warehouse config, table files are stored under:
+
+```text
+s3://airflow-bucket/SILVER/jobs/
+├── data/
+└── metadata/
+
+s3://airflow-bucket/SILVER/companies/
+├── data/
+└── metadata/
+```
+
+The Iceberg SQL catalog metadata is stored in PostgreSQL, while Iceberg table data and table metadata JSON/Avro files are stored in MinIO/S3.
+
+### Gold
+
+Gold tables are written as Iceberg tables:
+
+```text
+GOLD.dim_company
+GOLD.dim_location
+GOLD.dim_date
+GOLD.dim_source
+GOLD.dim_role
+GOLD.dim_level
+GOLD.dim_working_model
+GOLD.dim_techstack
+GOLD.fact_hiring
+GOLD.bridge_tech_fact
+```
+
+Gold transformations use DuckDB as the SQL engine over Arrow tables loaded from PyIceberg. PyIceberg is used for catalog access and Iceberg writes.
+
+## Important Runtime Notes
+
+### DockerOperator socket access
+
+Airflow containers need access to the host Docker socket:
+
+```text
+/var/run/docker.sock
+```
+
+The Airflow compose file mounts the socket and adds the Docker socket group:
+
+```yaml
+user: "${AIRFLOW_UID:-50000}:0"
+group_add:
+  - "${DOCKER_GID:-989}"
+```
+
+On EC2, `scripts/prod-deploy.sh` detects the socket group dynamically:
+
 ```bash
-make ps
+DOCKER_GID="$(stat -c '%g' /var/run/docker.sock)"
+export DOCKER_GID
+```
+
+If `DockerOperator` fails with `PermissionError: [Errno 13] Permission denied`, recreate the Airflow containers after setting the correct `DOCKER_GID`.
+
+### Docker network
+
+Both compose stacks use the external network:
+
+```text
+data-pipeline-network
+```
+
+The production deploy script creates it automatically if missing.
+
+## Production Deployment on EC2
+
+Production deploy is handled by:
+
+```text
+.github/workflows/deploy-production.yml
+scripts/prod-deploy.sh
+scripts/health-check.sh
+```
+
+Required GitHub repository secrets:
+
+```text
+EC2_HOST                 # EC2 public IP or public DNS
+EC2_USER                 # EC2 SSH user, usually ec2-user for Amazon Linux
+EC2_SSH_PRIVATE_KEY      # Private key for SSH access
+```
+
+The workflow SSHs into EC2, syncs `/opt/linkedin-jobs-etl` with the GitHub `main` branch, and runs:
+
+```bash
+./scripts/prod-deploy.sh
+```
+
+The deploy script:
+
+1. Installs Git/Docker/Compose when needed.
+2. Builds `linkedin-etl:latest`.
+3. Creates `data-pipeline-network` when missing.
+4. Starts MinIO and PostgreSQL infrastructure.
+5. Starts Airflow with recreated containers.
+6. Runs health checks.
+
+## Useful Commands
+
+### Check containers
+
+```bash
+docker ps
+```
+
+### Check Airflow logs
+
+```bash
+docker logs airflow-scheduler --tail 200
+docker logs airflow-webserver --tail 200
+```
+
+### Check task state
+
+```bash
+docker exec airflow-scheduler airflow tasks states-for-dag-run \
+  linkedin_jobs_pipeline_docker_v08 \
+  <run_id>
+```
+
+### Test one Airflow task
+
+```bash
+docker exec airflow-scheduler airflow tasks test \
+  linkedin_jobs_pipeline_docker_v08 \
+  bronze_extract_and_load \
+  2026-05-21
+```
+
+### List MinIO objects
+
+```bash
+docker run --rm --network data-pipeline-network --entrypoint /bin/sh minio/mc:latest -c \
+  "mc alias set local http://minio:9000 minioadmin minioadmin >/dev/null && mc ls -r local/airflow-bucket | head -200"
 ```
 
 ## Troubleshooting
 
-### Services not starting
-```bash
-# Check logs
-docker-compose logs
+### `docker: command not found`
 
-# Restart services
-make prod-restart
+Install and start Docker on EC2:
+
+```bash
+sudo dnf install -y docker
+sudo systemctl enable docker
+sudo systemctl start docker
 ```
 
-### Airflow DAG not appearing
-- Check DAG file syntax
-- Verify imports are correct
-- Check Airflow logs: `docker-compose logs airflow-scheduler`
+The production deploy script performs this automatically.
 
-### MinIO connection issues
-- Verify S3_ENDPOINT in .env file
-- Check MinIO is running: `docker-compose ps minio`
-- Test connection: `curl http://localhost:9000/minio/health/live`
+### `network data-pipeline-network declared as external, but could not be found`
 
-## Power BI Integration
+Create the network:
 
-1. Install Power BI Desktop
-2. Connect to Iceberg tables via:
-   - Direct Query to PostgreSQL (metadata)
-   - Import from Parquet files in MinIO
-3. Use Gold layer tables for reporting
+```bash
+sudo docker network create data-pipeline-network
+```
 
-## Contributing
+The production deploy script performs this automatically.
 
-1. Fork the repository
-2. Create feature branch
-3. Commit changes
-4. Push to branch
-5. Create pull request
+### DockerOperator `PermissionError: [Errno 13] Permission denied`
+
+Check Airflow group membership and Docker socket group:
+
+```bash
+sudo docker exec airflow-scheduler id
+sudo docker exec airflow-scheduler ls -l /var/run/docker.sock
+```
+
+The socket group ID must appear in the Airflow container's `groups=...` output.
+
+### `No files found ... BRONZE/.../load_date=...`
+
+Bronze and Silver must use the same `load_date`. The Bronze code writes to the DAG-provided load date, and Silver reads the same partition.
+
+### `Cannot open file "SILVER.jobs/metadata/version-hint.text"`
+
+Do not use DuckDB `iceberg_scan('SILVER.jobs')` with the SQL catalog table name. Load the table via PyIceberg, register the Arrow result in DuckDB, then query the registered view.
+
+### `.env.prod` values with spaces
+
+`prod-deploy.sh` parses `.env.prod` without shell-sourcing it, so values such as this are supported:
+
+```env
+_PIP_ADDITIONAL_REQUIREMENTS=-r /project_root/requirements.txt
+```
 
 ## License
 
