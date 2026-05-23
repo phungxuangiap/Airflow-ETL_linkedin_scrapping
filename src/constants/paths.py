@@ -10,6 +10,10 @@ BUCKET = os.getenv("BUCKET", "airflow-bucket")
 BRONZE_API_DATA_PATH = f"s3://{BUCKET}/BRONZE/api_data/jobs"
 BRONZE_CRAWLER_DATA_PATH = f"s3://{BUCKET}/BRONZE/crawler_data/linkedin/jobs"
 
+# Staging layer paths
+STAGING_BRONZE_API_DATA_PATH = f"s3://{BUCKET}/STAGING/BRONZE/api_data/jobs"
+STAGING_BRONZE_CRAWLER_DATA_PATH = f"s3://{BUCKET}/STAGING/BRONZE/crawler_data/linkedin/jobs"
+
 # Silver layer paths
 SILVER_JOBS_PATH = f"s3://{BUCKET}/SILVER/jobs"
 SILVER_COMPANIES_PATH = f"s3://{BUCKET}/SILVER/companies"

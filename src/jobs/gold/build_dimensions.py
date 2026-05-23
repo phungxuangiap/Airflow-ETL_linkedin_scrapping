@@ -20,7 +20,16 @@ from src.constants.table_names import (
     GOLD_DIM_LEVEL,
     GOLD_DIM_WORKING_MODEL,
     GOLD_DIM_TECHSTACK,
+    STAGING_GOLD_DIM_COMPANY,
+    STAGING_GOLD_DIM_LOCATION,
+    STAGING_GOLD_DIM_DATE,
+    STAGING_GOLD_DIM_SOURCE,
+    STAGING_GOLD_DIM_ROLE,
+    STAGING_GOLD_DIM_LEVEL,
+    STAGING_GOLD_DIM_WORKING_MODEL,
+    STAGING_GOLD_DIM_TECHSTACK,
 )
+from src.jobs.staging.utils import load_table_as_arrow, overwrite_staging_table
 
 logger = get_logger(__name__)
 
@@ -195,35 +204,66 @@ def build_dim_techstack() -> pa.Table:
         return client.fetch_arrow_table(query)
 
 
-def run(**context) -> Dict[str, int]:
-    """
-    Build all dimension tables
+DIMENSION_TABLES = {
+    STAGING_GOLD_DIM_COMPANY: GOLD_DIM_COMPANY,
+    STAGING_GOLD_DIM_LOCATION: GOLD_DIM_LOCATION,
+    STAGING_GOLD_DIM_DATE: GOLD_DIM_DATE,
+    STAGING_GOLD_DIM_SOURCE: GOLD_DIM_SOURCE,
+    STAGING_GOLD_DIM_ROLE: GOLD_DIM_ROLE,
+    STAGING_GOLD_DIM_LEVEL: GOLD_DIM_LEVEL,
+    STAGING_GOLD_DIM_WORKING_MODEL: GOLD_DIM_WORKING_MODEL,
+    STAGING_GOLD_DIM_TECHSTACK: GOLD_DIM_TECHSTACK,
+}
 
-    Returns:
-        Dict with row counts for each dimension
-    """
-    logger.info("Building all dimension tables")
 
-    dim_company = build_dim_company()
-    dim_location = build_dim_location()
-    dim_date = build_dim_date()
-    dim_source = build_dim_source()
-    dim_role = build_dim_role()
-    dim_level = build_dim_level()
-    dim_working_model = build_dim_working_model()
-    dim_techstack = build_dim_techstack()
+def build_dimensions_batch() -> Dict[str, pa.Table]:
+    logger.info("Building dimension batch")
 
-    result = {
-        'dim_company': load_dimension_table(GOLD_DIM_COMPANY, dim_company),
-        'dim_location': load_dimension_table(GOLD_DIM_LOCATION, dim_location),
-        'dim_date': load_dimension_table(GOLD_DIM_DATE, dim_date),
-        'dim_source': load_dimension_table(GOLD_DIM_SOURCE, dim_source),
-        'dim_role': load_dimension_table(GOLD_DIM_ROLE, dim_role),
-        'dim_level': load_dimension_table(GOLD_DIM_LEVEL, dim_level),
-        'dim_working_model': load_dimension_table(GOLD_DIM_WORKING_MODEL, dim_working_model),
-        'dim_techstack': load_dimension_table(GOLD_DIM_TECHSTACK, dim_techstack),
+    return {
+        STAGING_GOLD_DIM_COMPANY: build_dim_company(),
+        STAGING_GOLD_DIM_LOCATION: build_dim_location(),
+        STAGING_GOLD_DIM_DATE: build_dim_date(),
+        STAGING_GOLD_DIM_SOURCE: build_dim_source(),
+        STAGING_GOLD_DIM_ROLE: build_dim_role(),
+        STAGING_GOLD_DIM_LEVEL: build_dim_level(),
+        STAGING_GOLD_DIM_WORKING_MODEL: build_dim_working_model(),
+        STAGING_GOLD_DIM_TECHSTACK: build_dim_techstack(),
     }
 
-    logger.info(f"Dimension tables built: {result}")
 
+def process_dimensions_to_staging(load_date: str = None, **context) -> Dict[str, int]:
+    logger.info("Starting Gold dimensions process to staging")
+
+    dimensions = build_dimensions_batch()
+    result = {
+        staging_table: overwrite_staging_table(staging_table, data)
+        for staging_table, data in dimensions.items()
+    }
+    result['timestamp'] = datetime.now().isoformat()
+
+    logger.info(f"Gold dimension staging completed: {result}")
     return result
+
+
+def promote_dimensions_to_gold(load_date: str = None, **context) -> Dict[str, int]:
+    logger.info("Promoting Gold dimension staging to Gold")
+
+    result = {}
+    for staging_table, gold_table in DIMENSION_TABLES.items():
+        data = load_table_as_arrow(staging_table)
+        result[gold_table] = load_dimension_table(gold_table, data)
+
+    result['timestamp'] = datetime.now().isoformat()
+    logger.info(f"Gold dimension promotion completed: {result}")
+    return result
+
+
+def run(**context) -> Dict[str, int]:
+    staging_result = process_dimensions_to_staging(**context)
+    promotion_result = promote_dimensions_to_gold(**context)
+
+    return {
+        'staging': staging_result,
+        'promotion': promotion_result,
+        'timestamp': datetime.now().isoformat()
+    }

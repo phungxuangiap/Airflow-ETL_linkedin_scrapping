@@ -63,53 +63,94 @@ with DAG(
     max_active_runs=1,
 ) as dag:
 
-    # Task 1: Bronze Layer - Extract and Load
-    task_bronze = DockerOperator(
-        task_id='bronze_extract_and_load',
+    task_bronze_process_to_staging = DockerOperator(
+        task_id='bronze_process_to_staging',
         command=[
             '--layer', 'bronze',
-            '--load-date', '{{ ds }}',  # Airflow execution date (YYYY-MM-DD)
+            '--step', 'process_to_staging',
+            '--load-date', '{{ ds }}',
             '--log-level', 'INFO',
         ],
         **docker_config
     )
 
-    # Task 2: Silver Layer - Transform and Clean
-    task_silver = DockerOperator(
-        task_id='silver_transform_and_clean',
+    task_bronze_promote = DockerOperator(
+        task_id='bronze_promote_staging_to_bronze',
+        command=[
+            '--layer', 'bronze',
+            '--step', 'promote',
+            '--load-date', '{{ ds }}',
+            '--log-level', 'INFO',
+        ],
+        **docker_config
+    )
+
+    task_silver_process_to_staging = DockerOperator(
+        task_id='silver_process_to_staging',
         command=[
             '--layer', 'silver',
+            '--step', 'process_to_staging',
             '--load-date', '{{ ds }}',
             '--log-level', 'INFO',
         ],
         **docker_config
     )
 
-    # Task 3: Gold Layer - Build Dimensions
-    task_gold_dimensions = DockerOperator(
-        task_id='gold_build_dimensions',
+    task_silver_promote = DockerOperator(
+        task_id='silver_promote_staging_to_silver',
+        command=[
+            '--layer', 'silver',
+            '--step', 'promote',
+            '--load-date', '{{ ds }}',
+            '--log-level', 'INFO',
+        ],
+        **docker_config
+    )
+
+    task_gold_dimensions_process_to_staging = DockerOperator(
+        task_id='gold_dimensions_process_to_staging',
         command=[
             '--layer', 'gold',
-            '--step', 'dimensions',
+            '--step', 'dimensions_to_staging',
             '--load-date', '{{ ds }}',
             '--log-level', 'INFO',
         ],
         **docker_config
     )
 
-    # Task 4: Gold Layer - Build Fact Table
-    task_gold_fact = DockerOperator(
-        task_id='gold_build_fact_table',
+    task_gold_dimensions_promote = DockerOperator(
+        task_id='gold_dimensions_promote_to_gold',
         command=[
             '--layer', 'gold',
-            '--step', 'fact',
+            '--step', 'promote_dimensions',
             '--load-date', '{{ ds }}',
             '--log-level', 'INFO',
         ],
         **docker_config
     )
 
-    # Task 5: Gold Layer - Load Star Schema
+    task_gold_fact_process_to_staging = DockerOperator(
+        task_id='gold_fact_process_to_staging',
+        command=[
+            '--layer', 'gold',
+            '--step', 'fact_to_staging',
+            '--load-date', '{{ ds }}',
+            '--log-level', 'INFO',
+        ],
+        **docker_config
+    )
+
+    task_gold_fact_promote = DockerOperator(
+        task_id='gold_fact_promote_to_gold',
+        command=[
+            '--layer', 'gold',
+            '--step', 'promote_fact',
+            '--load-date', '{{ ds }}',
+            '--log-level', 'INFO',
+        ],
+        **docker_config
+    )
+
     task_gold_load = DockerOperator(
         task_id='gold_load_star_schema',
         command=[
@@ -121,5 +162,15 @@ with DAG(
         **docker_config
     )
 
-    # Define task dependencies
-    task_bronze >> task_silver >> task_gold_dimensions >> task_gold_fact >> task_gold_load
+    task_clean_staging = DockerOperator(
+        task_id='clean_staging',
+        command=[
+            '--layer', 'staging',
+            '--step', 'clean',
+            '--load-date', '{{ ds }}',
+            '--log-level', 'INFO',
+        ],
+        **docker_config
+    )
+
+    task_bronze_process_to_staging >> task_bronze_promote >> task_silver_process_to_staging >> task_silver_promote >> task_gold_dimensions_process_to_staging >> task_gold_dimensions_promote >> task_gold_fact_process_to_staging >> task_gold_fact_promote >> task_gold_load >> task_clean_staging

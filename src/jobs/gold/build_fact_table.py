@@ -9,7 +9,14 @@ from src.utils.logger import get_logger
 from src.utils.iceberg_client import get_iceberg_client
 from src.utils.duckdb_client import DuckDBClient
 from src.jobs.gold.load_star_schema import load_fact_table
-from src.constants.table_names import SILVER_JOBS, GOLD_FACT_HIRING, GOLD_BRIDGE_TECH_FACT
+from src.constants.table_names import (
+    SILVER_JOBS,
+    GOLD_FACT_HIRING,
+    GOLD_BRIDGE_TECH_FACT,
+    STAGING_GOLD_FACT_HIRING,
+    STAGING_GOLD_BRIDGE_TECH_FACT,
+)
+from src.jobs.staging.utils import load_table_as_arrow, overwrite_staging_table
 
 logger = get_logger(__name__)
 
@@ -109,28 +116,54 @@ def build_bridge_tech_fact(load_date: str = None) -> pa.Table:
         return bridge_table
 
 
-def run(load_date: str = None, **context) -> Dict[str, int]:
-    """
-    Build fact and bridge tables
+def build_fact_batch(load_date: str = None) -> Dict[str, pa.Table]:
+    logger.info("Building fact and bridge batch")
 
-    Args:
-        load_date: Load date in YYYY-MM-DD format
-        **context: Airflow context
+    return {
+        STAGING_GOLD_FACT_HIRING: build_fact_hiring(load_date),
+        STAGING_GOLD_BRIDGE_TECH_FACT: build_bridge_tech_fact(load_date),
+    }
 
-    Returns:
-        Dict with row counts
-    """
-    logger.info("Building fact and bridge tables")
 
-    fact_hiring = build_fact_hiring(load_date)
-    bridge_tech_fact = build_bridge_tech_fact(load_date)
+def process_fact_to_staging(load_date: str = None, **context) -> Dict[str, int]:
+    logger.info(f"Starting Gold fact process to staging for load_date={load_date}")
+
+    fact_tables = build_fact_batch(load_date)
+    result = {
+        staging_table: overwrite_staging_table(staging_table, data, allow_empty=True)
+        for staging_table, data in fact_tables.items()
+    }
+    result['load_date'] = load_date
+    result['timestamp'] = datetime.now().isoformat()
+
+    logger.info(f"Gold fact staging completed: {result}")
+    return result
+
+
+def promote_fact_to_gold(load_date: str = None, **context) -> Dict[str, int]:
+    logger.info(f"Promoting Gold fact staging to Gold for load_date={load_date}")
+
+    fact_hiring = load_table_as_arrow(STAGING_GOLD_FACT_HIRING, allow_empty=True)
+    bridge_tech_fact = load_table_as_arrow(STAGING_GOLD_BRIDGE_TECH_FACT, allow_empty=True)
 
     result = {
-        'fact_hiring': load_fact_table(GOLD_FACT_HIRING, fact_hiring),
-        'bridge_tech_fact': load_fact_table(GOLD_BRIDGE_TECH_FACT, bridge_tech_fact),
+        'fact_hiring': load_fact_table(GOLD_FACT_HIRING, fact_hiring) if fact_hiring.num_rows > 0 else 0,
+        'bridge_tech_fact': load_fact_table(GOLD_BRIDGE_TECH_FACT, bridge_tech_fact) if bridge_tech_fact.num_rows > 0 else 0,
+        'load_date': load_date,
         'timestamp': datetime.now().isoformat()
     }
 
-    logger.info(f"Fact tables built: {result}")
-
+    logger.info(f"Gold fact promotion completed: {result}")
     return result
+
+
+def run(load_date: str = None, **context) -> Dict[str, int]:
+    staging_result = process_fact_to_staging(load_date=load_date, **context)
+    promotion_result = promote_fact_to_gold(load_date=load_date, **context)
+
+    return {
+        'staging': staging_result,
+        'promotion': promotion_result,
+        'load_date': load_date,
+        'timestamp': datetime.now().isoformat()
+    }

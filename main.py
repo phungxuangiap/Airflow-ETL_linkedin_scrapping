@@ -11,31 +11,61 @@ from src.utils.logger import get_logger
 logger = get_logger(__name__)
 
 
-def run_bronze(load_date: str):
-    """Execute Bronze layer: Extract and load raw data"""
-    from src.jobs.bronze.extract_and_load_bronze import run
+def run_bronze(load_date: str, step: str = 'all'):
+    logger.info("=== Starting Bronze Layer ===")
+    logger.info(f"Load date: {load_date}, Step: {step}")
 
-    logger.info(f"=== Starting Bronze Layer ===")
-    logger.info(f"Load date: {load_date}")
+    if step == 'process_to_staging':
+        from src.jobs.bronze.extract_and_load_bronze import process_to_staging
+        result = process_to_staging(load_date=load_date)
+    elif step == 'promote':
+        from src.jobs.bronze.extract_and_load_bronze import promote_staging_to_bronze
+        result = promote_staging_to_bronze(load_date=load_date)
+    elif step == 'all':
+        from src.jobs.bronze.extract_and_load_bronze import run
+        result = run(load_date=load_date)
+    else:
+        raise ValueError(f"Invalid Bronze step: {step}. Must be 'process_to_staging', 'promote', or 'all'")
 
-    result = run(load_date=load_date)
-
-    logger.info(f"=== Bronze Layer Completed ===")
+    logger.info("=== Bronze Layer Completed ===")
     logger.info(f"Result: {result}")
 
     return result
 
 
-def run_silver(load_date: str):
-    """Execute Silver layer: Transform, clean, and deduplicate"""
-    from src.jobs.silver.transform_and_load_silver import run
+def run_silver(load_date: str, step: str = 'all'):
+    logger.info("=== Starting Silver Layer ===")
+    logger.info(f"Load date: {load_date}, Step: {step}")
 
-    logger.info(f"=== Starting Silver Layer ===")
-    logger.info(f"Load date: {load_date}")
+    if step == 'process_to_staging':
+        from src.jobs.silver.transform_and_load_silver import process_to_staging
+        result = process_to_staging(load_date=load_date)
+    elif step == 'promote':
+        from src.jobs.silver.transform_and_load_silver import promote_staging_to_silver
+        result = promote_staging_to_silver(load_date=load_date)
+    elif step == 'all':
+        from src.jobs.silver.transform_and_load_silver import run
+        result = run(load_date=load_date)
+    else:
+        raise ValueError(f"Invalid Silver step: {step}. Must be 'process_to_staging', 'promote', or 'all'")
 
-    result = run(load_date=load_date)
+    logger.info("=== Silver Layer Completed ===")
+    logger.info(f"Result: {result}")
 
-    logger.info(f"=== Silver Layer Completed ===")
+    return result
+
+
+def run_staging(load_date: str, step: str = 'clean'):
+    logger.info("=== Starting Staging Maintenance ===")
+    logger.info(f"Load date: {load_date}, Step: {step}")
+
+    if step == 'clean':
+        from src.jobs.staging.cleanup import run
+        result = run(load_date=load_date)
+    else:
+        raise ValueError(f"Invalid Staging step: {step}. Must be 'clean'")
+
+    logger.info("=== Staging Maintenance Completed ===")
     logger.info(f"Result: {result}")
 
     return result
@@ -57,10 +87,30 @@ def run_gold(load_date: str, step: str = 'all'):
         result = run(load_date=load_date)
         logger.info(f"Dimensions built: {result}")
 
+    elif step == 'dimensions_to_staging':
+        from src.jobs.gold.build_dimensions import process_dimensions_to_staging
+        result = process_dimensions_to_staging(load_date=load_date)
+        logger.info(f"Dimensions staged: {result}")
+
+    elif step == 'promote_dimensions':
+        from src.jobs.gold.build_dimensions import promote_dimensions_to_gold
+        result = promote_dimensions_to_gold(load_date=load_date)
+        logger.info(f"Dimensions promoted: {result}")
+
     elif step == 'fact':
         from src.jobs.gold.build_fact_table import run
         result = run(load_date=load_date)
         logger.info(f"Fact table built: {result}")
+
+    elif step == 'fact_to_staging':
+        from src.jobs.gold.build_fact_table import process_fact_to_staging
+        result = process_fact_to_staging(load_date=load_date)
+        logger.info(f"Fact tables staged: {result}")
+
+    elif step == 'promote_fact':
+        from src.jobs.gold.build_fact_table import promote_fact_to_gold
+        result = promote_fact_to_gold(load_date=load_date)
+        logger.info(f"Fact tables promoted: {result}")
 
     elif step == 'load':
         from src.jobs.gold.load_star_schema import run
@@ -88,7 +138,10 @@ def run_gold(load_date: str, step: str = 'all'):
             'load': load_result
         }
     else:
-        raise ValueError(f"Invalid step: {step}. Must be 'dimensions', 'fact', 'load', or 'all'")
+        raise ValueError(
+            f"Invalid Gold step: {step}. Must be 'dimensions', 'dimensions_to_staging', "
+            "'promote_dimensions', 'fact', 'fact_to_staging', 'promote_fact', 'load', or 'all'"
+        )
 
     logger.info(f"=== Gold Layer Completed ===")
     logger.info(f"Result: {result}")
@@ -112,8 +165,8 @@ Examples:
         '--layer',
         type=str,
         required=True,
-        choices=['bronze', 'silver', 'gold'],
-        help='ETL layer to execute (bronze, silver, or gold)'
+        choices=['bronze', 'silver', 'gold', 'staging'],
+        help='ETL layer to execute (bronze, silver, gold, or staging)'
     )
 
     parser.add_argument(
@@ -135,8 +188,20 @@ Examples:
         '--step',
         type=str,
         default='all',
-        choices=['dimensions', 'fact', 'load', 'all'],
-        help='Gold layer step to execute (default: all)'
+        choices=[
+            'process_to_staging',
+            'promote',
+            'dimensions',
+            'dimensions_to_staging',
+            'promote_dimensions',
+            'fact',
+            'fact_to_staging',
+            'promote_fact',
+            'load',
+            'clean',
+            'all'
+        ],
+        help='Layer step to execute (default: all)'
     )
 
     args = parser.parse_args()
@@ -153,9 +218,11 @@ Examples:
         logger.info(f"Starting ETL Pipeline - Layer: {args.layer.upper()}")
 
         if args.layer == 'bronze':
-            result = run_bronze(args.load_date)
+            result = run_bronze(args.load_date, step=args.step)
+        elif args.layer == 'staging':
+            result = run_staging(args.load_date, step=args.step)
         elif args.layer == 'silver':
-            result = run_silver(args.load_date)
+            result = run_silver(args.load_date, step=args.step)
         elif args.layer == 'gold':
             result = run_gold(args.load_date, step=args.step)
 
