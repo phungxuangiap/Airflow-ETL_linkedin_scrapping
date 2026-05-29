@@ -47,6 +47,10 @@ docker compose -f docker/infrastructure/docker-compose.yml up -d
 echo "⏳ Waiting for infrastructure to be ready..."
 sleep 10
 
+# Start Trino
+echo "🐳 Starting Trino service..."
+docker compose -f trino/docker-compose.yml up -d
+
 # Start Airflow
 echo "🐳 Starting Airflow services..."
 docker compose -f docker/airflow/docker-compose.yml up -d
@@ -60,6 +64,9 @@ echo ""
 echo "Infrastructure:"
 docker compose -f docker/infrastructure/docker-compose.yml ps
 echo ""
+echo "Trino:"
+docker compose -f trino/docker-compose.yml ps
+echo ""
 echo "Airflow:"
 docker compose -f docker/airflow/docker-compose.yml ps
 
@@ -68,11 +75,13 @@ echo "✅ Services started successfully!"
 echo ""
 echo "📊 Access points:"
 echo "  - Airflow UI: http://localhost:8080 (airflow/airflow)"
+echo "  - Trino: http://localhost:8081"
 echo "  - MinIO Console: http://localhost:9001 (minioadmin/minioadmin)"
 echo "  - MinIO API: http://localhost:9000"
 echo ""
 echo "📝 Logs:"
 echo "  - Infrastructure: docker compose -f docker/infrastructure/docker-compose.yml logs -f"
+echo "  - Trino: docker compose -f trino/docker-compose.yml logs -f"
 echo "  - Airflow: docker compose -f docker/airflow/docker-compose.yml logs -f"
 echo ""
 echo "🛑 Stop: ./scripts/local-down.sh"
