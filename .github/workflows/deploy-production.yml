@@ -34,7 +34,7 @@ jobs:
           ssh $EC2_USER@$EC2_HOST "PROJECT_DIR='$PROJECT_DIR' REPO_URL='$REPO_URL' bash -s" << 'EOF'
             set -e
 
-            echo "🚀 Starting deployment..."
+            echo "🚀 Starting deployment for infrastructure, Trino, and Airflow..."
 
             if ! command -v git >/dev/null 2>&1; then
               echo "Installing git..."

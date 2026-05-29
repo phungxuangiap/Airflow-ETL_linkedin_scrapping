@@ -12,6 +12,10 @@ cd $PROJECT_DIR || exit 1
 echo "Stopping Airflow services..."
 docker compose -f docker/airflow/docker-compose.yml down
 
+# Stop Trino before backing services
+echo "Stopping Trino service..."
+docker compose -f trino/docker-compose.yml down
+
 # Stop infrastructure
 echo "Stopping infrastructure services..."
 docker compose -f docker/infrastructure/docker-compose.yml down

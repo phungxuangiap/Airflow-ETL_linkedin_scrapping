@@ -92,11 +92,13 @@ docker_cmd network create data-pipeline-network >/dev/null 2>&1 || true
 # Stop existing services
 echo "🛑 Stopping existing services..."
 compose_cmd -f docker/airflow/docker-compose.yml down
+compose_cmd -f trino/docker-compose.yml down
 compose_cmd -f docker/infrastructure/docker-compose.yml down
 
 # Pull latest Docker images
 echo "🐳 Pulling Docker images..."
 compose_cmd -f docker/infrastructure/docker-compose.yml pull
+compose_cmd -f trino/docker-compose.yml pull
 compose_cmd -f docker/airflow/docker-compose.yml pull
 
 # Start infrastructure first
@@ -105,6 +107,10 @@ compose_cmd -f docker/infrastructure/docker-compose.yml up -d
 
 echo "⏳ Waiting for infrastructure..."
 sleep 10
+
+# Start Trino
+echo "🚀 Starting Trino service..."
+compose_cmd -f trino/docker-compose.yml up -d --force-recreate
 
 # Start Airflow
 echo "🚀 Starting Airflow services..."
@@ -129,6 +135,9 @@ echo ""
 echo "📊 Service status:"
 echo "Infrastructure:"
 compose_cmd -f docker/infrastructure/docker-compose.yml ps
+echo ""
+echo "Trino:"
+compose_cmd -f trino/docker-compose.yml ps
 echo ""
 echo "Airflow:"
 compose_cmd -f docker/airflow/docker-compose.yml ps

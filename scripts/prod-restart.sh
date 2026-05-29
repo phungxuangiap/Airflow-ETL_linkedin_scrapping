@@ -15,6 +15,10 @@ docker compose -f docker/infrastructure/docker-compose.yml restart
 echo "⏳ Waiting for infrastructure..."
 sleep 10
 
+# Restart Trino
+echo "🔄 Restarting Trino service..."
+docker compose -f trino/docker-compose.yml up -d --force-recreate
+
 # Restart Airflow
 echo "🔄 Restarting Airflow services..."
 docker compose -f docker/airflow/docker-compose.yml restart

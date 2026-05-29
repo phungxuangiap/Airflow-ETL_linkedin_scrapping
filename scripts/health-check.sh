@@ -52,6 +52,12 @@ else
 fi
 
 echo ""
+echo -e "${YELLOW}=== Trino Services ===${NC}"
+
+# Check Trino Coordinator
+check_service "Trino Coordinator" "http://localhost:8081/v1/info"
+
+echo ""
 echo -e "${YELLOW}=== Airflow Services ===${NC}"
 
 # Check Airflow Webserver
