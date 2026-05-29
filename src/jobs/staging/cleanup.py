@@ -41,7 +41,7 @@ STAGING_TABLES = [
 
 def clean_staging_objects() -> Dict[str, int]:
     client = get_minio_client()
-    prefix = "STAGING/"
+    prefix = "staging/"
     objects = client.list_objects(prefix=prefix, recursive=True)
 
     deleted = 0

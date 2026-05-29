@@ -17,7 +17,7 @@ def clean_api_source_jobs(load_date: str = None) -> Dict[str, pa.Table]:
     logger.info(f"Cleaning API source jobs for load_date={load_date}")
 
     with DuckDBClient() as client:
-        bronze_path = f"s3://airflow-bucket/BRONZE/api_data/jobs/load_date={load_date}/*.jsonl"
+        bronze_path = f"s3://airflow-bucket/bronze/api_data/jobs/load_date={load_date}/*.jsonl"
 
         # Clean jobs data
         jobs_query = f"""
@@ -101,7 +101,7 @@ def clean_scrapped_source_jobs(load_date: str = None) -> Dict[str, pa.Table]:
     logger.info(f"Cleaning scrapped source jobs for load_date={load_date}")
 
     with DuckDBClient() as client:
-        bronze_path = f"s3://airflow-bucket/BRONZE/crawler_data/linkedin/jobs/load_date={load_date}/*.jsonl"
+        bronze_path = f"s3://airflow-bucket/bronze/crawler_data/linkedin/jobs/load_date={load_date}/*.jsonl"
 
         # Clean jobs data
         jobs_query = f"""

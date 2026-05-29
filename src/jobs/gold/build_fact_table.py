@@ -69,7 +69,6 @@ def build_fact_hiring(load_date: str = None) -> pa.Table:
                 number_applicants as number_of_applicants,
                 'ACTIVE' as job_status
             FROM silver_jobs
-            WHERE CAST(processed_at AS DATE) = DATE '{load_date}'
         """
 
         fact_table = client.fetch_arrow_table(query)
@@ -104,8 +103,7 @@ def build_bridge_tech_fact(load_date: str = None) -> pa.Table:
                     job_url,
                     UNNEST(techstacks) as tech_item
                 FROM silver_jobs
-                WHERE CAST(processed_at AS DATE) = DATE '{load_date}'
-                  AND techstacks IS NOT NULL
+                WHERE techstacks IS NOT NULL
                   AND len(techstacks) > 0
             )
         """

@@ -194,8 +194,8 @@ def upload_to_bronze_layer(
     Upload data files to MinIO bronze layer with structured paths and auto-delete.
 
     Structure:
-    - API data:     BRONZE/api_data/[entity]/load_date=YYYY-MM-DD/data_file.json
-    - Scrapped:     BRONZE/crawler_data/[source_web_name]/[entity]/load_date=YYYY-MM-DD/data_file.json
+    - API data:     bronze/api_data/[entity]/load_date=YYYY-MM-DD/data_file.json
+    - Scrapped:     bronze/crawler_data/[source_web_name]/[entity]/load_date=YYYY-MM-DD/data_file.json
 
     Args:
         api_source_dir: Local directory containing API data files
@@ -218,12 +218,12 @@ def upload_to_bronze_layer(
     api_count = 0
     scrapped_count = 0
 
-    # Upload API data to: BRONZE/api_data/[entity]/load_date=YYYY-MM-DD/
+    # Upload API data to: bronze/api_data/[entity]/load_date=YYYY-MM-DD/
     api_dir = Path(api_source_dir)
     if api_dir.exists():
         for file_path in api_dir.glob('*.jsonl'):
             # Create bronze layer path for API data
-            object_name = f"BRONZE/api_data/{entity}/load_date={load_date}/{file_path.name}"
+            object_name = f"bronze/api_data/{entity}/load_date={load_date}/{file_path.name}"
 
             if client.upload_file(str(file_path), object_name):
                 try:
@@ -237,12 +237,12 @@ def upload_to_bronze_layer(
     else:
         logger.warning(f"API source directory not found: {api_source_dir}")
 
-    # Upload scrapped data to: BRONZE/crawler_data/[source_web_name]/[entity]/load_date=YYYY-MM-DD/
+    # Upload scrapped data to: bronze/crawler_data/[source_web_name]/[entity]/load_date=YYYY-MM-DD/
     scrapped_dir = Path(scrapped_source_dir)
     if scrapped_dir.exists():
         for file_path in scrapped_dir.glob('*.jsonl'):
             # Create bronze layer path for scrapped data
-            object_name = f"BRONZE/crawler_data/{source_web_name}/{entity}/load_date={load_date}/{file_path.name}"
+            object_name = f"bronze/crawler_data/{source_web_name}/{entity}/load_date={load_date}/{file_path.name}"
 
             if client.upload_file(str(file_path), object_name):
                 try:

@@ -45,7 +45,7 @@ docker_config = {
 
         # Paths
         'BUCKET': 'airflow-bucket',
-        'BRONZE_PATH': 's3://airflow-bucket/BRONZE/crawler_data/linkedin/jobs',
+        'BRONZE_PATH': 's3://airflow-bucket/bronze/crawler_data/linkedin/jobs',
         'SILVER_PATH': 's3://airflow-bucket/silver',
         'GOLD_PATH': 's3://airflow-bucket/gold/analytics',
     },

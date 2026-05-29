@@ -43,7 +43,7 @@ def extract_and_stage_api_jobs(load_date: str, **context) -> Dict[str, Any]:
         logger.info(f"File created: {extract_result['filepath']}")
 
         file_path = Path(extract_result['filepath'])
-        object_name = f"STAGING/BRONZE/api_data/{settings.ENTITY_TYPE}/load_date={load_date}/{file_path.name}"
+        object_name = f"staging/bronze/api_data/{settings.ENTITY_TYPE}/load_date={load_date}/{file_path.name}"
 
         return _upload_generated_file_to_staging(extract_result, object_name, 'api', load_date)
 
@@ -63,7 +63,7 @@ def extract_and_stage_scrapped_jobs(load_date: str, **context) -> Dict[str, Any]
         logger.info(f"File created: {extract_result['filepath']}")
 
         file_path = Path(extract_result['filepath'])
-        object_name = f"STAGING/BRONZE/crawler_data/{settings.SOURCE_WEB_NAME}/{settings.ENTITY_TYPE}/load_date={load_date}/{file_path.name}"
+        object_name = f"staging/bronze/crawler_data/{settings.SOURCE_WEB_NAME}/{settings.ENTITY_TYPE}/load_date={load_date}/{file_path.name}"
 
         return _upload_generated_file_to_staging(extract_result, object_name, 'scrapped', load_date)
 
@@ -121,10 +121,10 @@ def promote_staging_to_bronze(load_date: str = None, **context) -> Dict[str, Any
     logger.info(f"Promoting Bronze staging to Bronze for load_date={load_date}")
 
     client = get_minio_client()
-    api_staging_prefix = f"STAGING/BRONZE/api_data/{settings.ENTITY_TYPE}/load_date={load_date}/"
-    api_target_prefix = f"BRONZE/api_data/{settings.ENTITY_TYPE}/load_date={load_date}/"
-    scrapped_staging_prefix = f"STAGING/BRONZE/crawler_data/{settings.SOURCE_WEB_NAME}/{settings.ENTITY_TYPE}/load_date={load_date}/"
-    scrapped_target_prefix = f"BRONZE/crawler_data/{settings.SOURCE_WEB_NAME}/{settings.ENTITY_TYPE}/load_date={load_date}/"
+    api_staging_prefix = f"staging/bronze/api_data/{settings.ENTITY_TYPE}/load_date={load_date}/"
+    api_target_prefix = f"bronze/api_data/{settings.ENTITY_TYPE}/load_date={load_date}/"
+    scrapped_staging_prefix = f"staging/bronze/crawler_data/{settings.SOURCE_WEB_NAME}/{settings.ENTITY_TYPE}/load_date={load_date}/"
+    scrapped_target_prefix = f"bronze/crawler_data/{settings.SOURCE_WEB_NAME}/{settings.ENTITY_TYPE}/load_date={load_date}/"
 
     api_promoted = _copy_objects(client, api_staging_prefix, api_target_prefix)
     scrapped_promoted = _copy_objects(client, scrapped_staging_prefix, scrapped_target_prefix)

@@ -33,7 +33,7 @@ class IcebergConfig:
     DELETE_MODE = os.getenv("DUCKDB_ICEBERG_DELETE_MODE", "copy-on-write")
 
     # Layer paths
-    BRONZE_PATH = os.getenv("BRONZE_PATH", f"s3://{BUCKET}/BRONZE/crawler_data/linkedin/jobs")
+    BRONZE_PATH = os.getenv("BRONZE_PATH", f"s3://{BUCKET}/bronze/crawler_data/linkedin/jobs")
     SILVER_PATH = os.getenv("SILVER_PATH", f"s3://{BUCKET}/silver")
     GOLD_PATH = os.getenv("GOLD_PATH", f"s3://{BUCKET}/gold/analytics")
 

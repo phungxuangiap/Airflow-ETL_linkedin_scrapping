@@ -19,9 +19,9 @@ class MinIOConfig:
     BUCKET_NAME = os.getenv("BUCKET", "airflow-bucket")
 
     # Layer paths
-    BRONZE_PATH = f"BRONZE/"
-    SILVER_PATH = f"SILVER/"
-    GOLD_PATH = f"GOLD/"
+    BRONZE_PATH = f"bronze/"
+    SILVER_PATH = f"silver/"
+    GOLD_PATH = f"gold/"
 
     # Specific data paths
     API_SOURCE_PATH = f"{BRONZE_PATH}api_data/"
