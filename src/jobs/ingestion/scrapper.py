@@ -9,6 +9,7 @@ from urllib.parse import urljoin
 import requests
 
 from src.configs import jobs_source
+from src.jobs.ingestion.postgres_loader import insert_raw_jobs
 from src.utils.logger import get_logger
 
 try:
@@ -133,7 +134,7 @@ def collect_jobs_html_by_source() -> Dict[str, List[str]]:
         entry_url = _source_entry_url(source)
         LOGGER.info("Crawling source %s from %s", source_name, entry_url)
         html = fetch_html(entry_url)
-        jobs_html[source_name] = extract_job_items_html(source, html)
+        jobs_html.setdefault(source_name, []).extend(extract_job_items_html(source, html))
     return jobs_html
 
 
@@ -258,6 +259,9 @@ def ask_ai_for_source_config(
             "Do not return null or an empty string for prefix_job_url when job_url is relative.",
             "For text extraction, use the format 'css_selector@text()', for example 'h2 a.job_link@text()'.",
             "For attribute extraction, use the format 'css_selector@attribute', for example 'a@href' or 'h2 a.job_link@title'.",
+            "Prefer stable semantic selectors over styling classes: href patterns, meaningful attributes, tag structure, itemprop/aria/data attributes, and domain classes such as job-item, job-title, company-name, salary, job-link.",
+            "Do not use Tailwind utility classes or generated UI classes such as flex, gap-*, p-*, m-*, w-*, h-*, rounded-*, shadow, border, text-*, bg-*, line-clamp-*, md:*, lg:*, hover:*, or classes containing '/', '[', ']', ':'.",
+            "For job_url, prefer href-pattern selectors such as 'a[href^=\"/viec-lam/\"]@href', 'a[href^=\"/detail-jobs/\"]@href', or 'a[href*=\"job\"]@href' instead of class-based selectors.",
             "Do not invent selectors that are not supported by the HTML, except prefix_job_url may be inferred from absolute URLs or source context.",
         ],
     }
@@ -438,6 +442,25 @@ def extract_job_from_html(
     return job
 
 
+def extract_jobs_for_source(
+    source: Dict[str, Any],
+    html_items: List[str],
+    source_config: Dict[str, Any],
+) -> List[Dict[str, Optional[str]]]:
+    source_name = source["source_name"]
+    source_jobs: List[Dict[str, Optional[str]]] = []
+
+    for job_html in html_items:
+        try:
+            source_jobs.append(extract_job_from_html(source_name, job_html, source_config, source))
+        except Exception as exc:
+            LOGGER.error("Cannot extract job for source %s: %s", source_name, exc)
+
+    insert_raw_jobs(source_jobs)
+    LOGGER.info("Extracted and stored %s jobs for source %s", len(source_jobs), source_name)
+    return source_jobs
+
+
 def extract_jobs_by_source(
     jobs_html: Dict[str, List[str]],
     source_configs: List[Dict[str, Any]],
@@ -452,27 +475,57 @@ def extract_jobs_by_source(
         if not source_config:
             LOGGER.warning("Skip source %s because selector config is missing", source_name)
             continue
+        if not source:
+            LOGGER.warning("Skip source %s because source definition is missing", source_name)
+            continue
 
-        extracted_count = 0
-        for job_html in html_items:
-            try:
-                jobs.append(extract_job_from_html(source_name, job_html, source_config, source))
-                extracted_count += 1
-            except Exception as exc:
-                LOGGER.error("Cannot extract job for source %s: %s", source_name, exc)
-
-        LOGGER.info("Extracted %s jobs for source %s", extracted_count, source_name)
+        jobs.extend(extract_jobs_for_source(source, html_items, source_config))
 
     LOGGER.info("Extracted %s jobs in total", len(jobs))
     return jobs
 
 
+def _get_source_config_for_crawled_source(
+    source: Dict[str, Any],
+    html_items: List[str],
+    config_by_source: Dict[str, Dict[str, Any]],
+) -> Optional[Dict[str, Any]]:
+    source_name = source["source_name"]
+    source_config = config_by_source.get(source_name)
+    if source_config and is_source_config_complete(source_config):
+        return source_config
+
+    first_job_html = next(iter(html_items), None)
+    if not first_job_html:
+        LOGGER.warning("Cannot generate config for %s because no job HTML was crawled", source_name)
+        return source_config
+
+    source_config = generate_source_config_from_ai(source_name, first_job_html, _source_entry_url(source))
+    config_by_source[source_name] = source_config
+    write_source_config_py(list(config_by_source.values()))
+    return source_config
+
+
 def run_ingestion_pipeline() -> List[Dict[str, Optional[str]]]:
     LOGGER.info("Start job ingestion pipeline")
-    jobs_html = collect_jobs_html_by_source()
-    source_configs = ensure_source_configs(jobs_html)
-    jobs = extract_jobs_by_source(jobs_html, source_configs)
-    LOGGER.info("Finished job ingestion pipeline with %s jobs", jobs)
+    jobs: List[Dict[str, Optional[str]]] = []
+    config_by_source = {config.get("source_name"): config for config in load_source_configs()}
+
+    for source in load_job_sources():
+        source_name = source["source_name"]
+        entry_url = _source_entry_url(source)
+        LOGGER.info("Crawling source %s from %s", source_name, entry_url)
+        html = fetch_html(entry_url)
+        html_items = extract_job_items_html(source, html)
+
+        source_config = _get_source_config_for_crawled_source(source, html_items, config_by_source)
+        if not source_config or not is_source_config_complete(source_config):
+            LOGGER.warning("Skip source %s because selector config is missing", source_name)
+            continue
+
+        jobs.extend(extract_jobs_for_source(source, html_items, source_config))
+
+    LOGGER.info("Finished job ingestion pipeline with %s jobs", len(jobs))
     return jobs
 
 
