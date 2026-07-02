@@ -5,19 +5,36 @@ set -e
 
 echo "🛑 Stopping LinkedIn Jobs ETL - Production"
 
-PROJECT_DIR="/opt/linkedin-jobs-etl"
-cd $PROJECT_DIR || exit 1
+PROJECT_DIR="${PROJECT_DIR:-/opt/linkedin-jobs-etl}"
+cd "$PROJECT_DIR" || exit 1
+
+if sudo docker compose version >/dev/null 2>&1; then
+    COMPOSE_BIN="docker compose"
+elif command -v docker-compose >/dev/null 2>&1; then
+    COMPOSE_BIN="docker-compose"
+else
+    echo "❌ Docker Compose is not installed"
+    exit 1
+fi
+
+DOCKER_GID="$(stat -c '%g' /var/run/docker.sock 2>/dev/null || echo 989)"
+AIRFLOW_UID="${AIRFLOW_UID:-50000}"
+export DOCKER_GID AIRFLOW_UID
+
+compose_cmd() {
+    sudo env DOCKER_GID="$DOCKER_GID" AIRFLOW_UID="$AIRFLOW_UID" $COMPOSE_BIN "$@"
+}
 
 # Stop Airflow first
 echo "Stopping Airflow services..."
-docker compose -f docker/airflow/docker-compose.yml down
+compose_cmd -f docker/airflow/docker-compose.yml down
 
 # Stop Trino before backing services
 echo "Stopping Trino service..."
-docker compose -f trino/docker-compose.yml down
+compose_cmd -f trino/docker-compose.yml down
 
 # Stop infrastructure
 echo "Stopping infrastructure services..."
-docker compose -f docker/infrastructure/docker-compose.yml down
+compose_cmd -f docker/infrastructure/docker-compose.yml down
 
 echo "✅ Services stopped successfully!"

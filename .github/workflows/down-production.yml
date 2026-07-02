@@ -1,17 +1,17 @@
-name: Destroy and Renew Production EC2
+name: Down Production EC2
 
 on:
   workflow_dispatch:
     inputs:
       confirm:
-        description: Type RENEW_PROD to destroy production volumes and redeploy
+        description: Type DOWN_PROD to stop production services
         required: true
         type: string
 
 jobs:
-  renew:
+  down:
     runs-on: ubuntu-latest
-    if: ${{ github.event.inputs.confirm == 'RENEW_PROD' }}
+    if: ${{ github.event.inputs.confirm == 'DOWN_PROD' }}
 
     steps:
       - name: Checkout code
@@ -27,23 +27,18 @@ jobs:
           mkdir -p ~/.ssh
           ssh-keyscan -H "${{ secrets.EC2_HOST }}" >> ~/.ssh/known_hosts
 
-      - name: Destroy and renew production
+      - name: Down production services
         env:
           EC2_HOST: ${{ secrets.EC2_HOST }}
           EC2_USER: ${{ secrets.EC2_USER }}
-          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
           PROJECT_DIR: /opt/linkedin-jobs-etl
           REPO_URL: https://github.com/phungxuangiap/Airflow-ETL_linkedin_scrapping.git
-          CONFIRM_RENEW_PROD: ${{ github.event.inputs.confirm }}
         run: |
-          GROQ_API_KEY_B64="$(printf '%s' "$GROQ_API_KEY" | base64 -w 0)"
           ssh "$EC2_USER@$EC2_HOST" \
-            "PROJECT_DIR='$PROJECT_DIR' REPO_URL='$REPO_URL' CONFIRM_RENEW_PROD='$CONFIRM_RENEW_PROD' GROQ_API_KEY_B64='$GROQ_API_KEY_B64' bash -s" << 'EOF'
+            "PROJECT_DIR='$PROJECT_DIR' REPO_URL='$REPO_URL' bash -s" << 'EOF'
             set -e
 
-            export GROQ_API_KEY="$(printf '%s' "$GROQ_API_KEY_B64" | base64 -d)"
-
-            echo "♻️  Starting destructive production renew..."
+            echo "🛑 Starting production shutdown..."
 
             if ! command -v git >/dev/null 2>&1; then
               echo "Installing git..."
@@ -65,25 +60,14 @@ jobs:
             fi
 
             cd "$PROJECT_DIR"
-            chmod +x scripts/prod-renew.sh
-            ./scripts/prod-renew.sh
-          EOF
-
-      - name: Verify renewed deployment
-        env:
-          EC2_HOST: ${{ secrets.EC2_HOST }}
-          EC2_USER: ${{ secrets.EC2_USER }}
-          PROJECT_DIR: /opt/linkedin-jobs-etl
-        run: |
-          ssh "$EC2_USER@$EC2_HOST" "PROJECT_DIR='$PROJECT_DIR' bash -s" << 'EOF'
-            cd "$PROJECT_DIR"
-            ./scripts/health-check.sh
+            chmod +x scripts/prod-down.sh
+            ./scripts/prod-down.sh
           EOF
 
       - name: Notify on success
         if: success()
-        run: echo "✅ Production renew completed successfully!"
+        run: echo "✅ Production services stopped successfully!"
 
       - name: Notify on failure
         if: failure()
-        run: echo "❌ Production renew failed!"
+        run: echo "❌ Production shutdown failed!"
