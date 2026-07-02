@@ -28,13 +28,6 @@ x-airflow-common:
     ICEBERG_CATALOG_URI: postgresql://iceberg:iceberg123@postgres-iceberg:5432/iceberg_catalog
     ICEBERG_WAREHOUSE_PATH: s3://iceberg-warehouse
 
-    # Raw ingestion PostgreSQL Configuration
-    INGESTION_POSTGRES_HOST: postgres-ingestion
-    INGESTION_POSTGRES_PORT: 5432
-    INGESTION_POSTGRES_DB: ingestion
-    INGESTION_POSTGRES_USER: ingestion
-    INGESTION_POSTGRES_PASSWORD: ingestion123
-
     # Python path
     PYTHONPATH: /opt/airflow
 

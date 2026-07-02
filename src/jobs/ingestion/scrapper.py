@@ -11,7 +11,6 @@ from urllib.parse import urljoin
 import requests
 
 from src.configs import jobs_source
-from src.jobs.ingestion.postgres_loader import insert_raw_jobs
 from src.utils.logger import get_logger
 
 try:
@@ -569,7 +568,7 @@ def extract_jobs_for_source(
     html_items: List[str],
     source_config: Dict[str, Any],
 ) -> List[Dict[str, Optional[str]]]:
-    """Extract and store raw jobs for one source from its job listing HTML blocks."""
+    """Extract raw jobs for one source from its job listing HTML blocks."""
     source_name = source["source_name"]
     source_jobs: List[Dict[str, Optional[str]]] = []
 
@@ -579,8 +578,7 @@ def extract_jobs_for_source(
         except Exception as exc:
             LOGGER.error("Cannot extract job for source %s: %s", source_name, exc)
 
-    insert_raw_jobs(source_jobs)
-    LOGGER.info("Extracted and stored %s jobs for source %s", len(source_jobs), source_name)
+    LOGGER.info("Extracted %s jobs for source %s", len(source_jobs), source_name)
     return source_jobs
 
 
@@ -608,7 +606,7 @@ def _get_source_config_for_crawled_source(
 
 
 def run_ingestion_pipeline() -> List[Dict[str, Optional[str]]]:
-    """Run the end-to-end ingestion flow from crawling through raw job storage."""
+    """Run the end-to-end ingestion flow and return crawled raw jobs."""
     LOGGER.info("Start job ingestion pipeline")
     jobs: List[Dict[str, Optional[str]]] = []
     config_by_source = {config.get("source_name"): config for config in load_source_configs()}
@@ -629,5 +627,4 @@ def run_ingestion_pipeline() -> List[Dict[str, Optional[str]]]:
 
     LOGGER.info("Finished job ingestion pipeline with %s jobs", len(jobs))
     return jobs
-
 

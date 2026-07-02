@@ -64,10 +64,6 @@ volumes:
     driver: local
   postgres_iceberg_data:
     driver: local
-  postgres_ingestion_data:
-    driver: local
-  pgadmin_data:
-    driver: local
 
 networks:
   data-pipeline-network:
