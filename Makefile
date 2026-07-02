@@ -1,4 +1,4 @@
-.PHONY: help infra-up infra-down airflow-up airflow-down up down restart health-check clean logs ps trigger rebuild-etl
+.PHONY: help infra-up infra-down airflow-up airflow-down up down restart health-check clean logs ps trigger rebuild-etl reset-superset
 
 help:
 	@echo "LinkedIn Jobs ETL - Available Commands"
@@ -9,6 +9,7 @@ help:
 	@echo "  make restart        - Restart all services"
 	@echo "  make trigger        - Trigger the ETL pipeline"
 	@echo "  make rebuild-etl    - Rebuild ETL Docker image (after code changes)"
+	@echo "  make reset-superset - Reset local Superset metadata DB and recreate Trino connection"
 	@echo ""
 	@echo "Infrastructure:"
 	@echo "  make infra-up       - Start infrastructure only (MinIO, PostgreSQL)"
@@ -54,6 +55,10 @@ trigger:
 rebuild-etl:
 	@chmod +x scripts/rebuild-etl.sh
 	@./scripts/rebuild-etl.sh
+
+reset-superset:
+	@chmod +x scripts/reset-superset.sh
+	@./scripts/reset-superset.sh
 
 # Infrastructure commands
 infra-up:
@@ -115,6 +120,7 @@ ps:
 clean:
 	@echo "🧹 Cleaning up..."
 	@docker compose -f docker/airflow/docker-compose.yml down -v
+	@docker compose -f docker/infrastructure/docker-compose.superset.yml down -v
 	@docker compose -f docker/infrastructure/docker-compose.yml down -v
 	@rm -rf data/raw/* data/bronze/* data/silver/* data/gold/* 2>/dev/null || true
 	@rm -rf tmp/api_sources/* tmp/scrapping_script/* 2>/dev/null || true

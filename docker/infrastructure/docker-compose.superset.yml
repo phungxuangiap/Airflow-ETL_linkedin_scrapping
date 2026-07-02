@@ -37,7 +37,7 @@ services:
       dockerfile: Dockerfile.superset
     container_name: superset-init
     env_file:
-      - ../../.env
+      - ${SUPERSET_ENV_FILE:-../../.env}
     depends_on:
       superset-db:
         condition: service_healthy
@@ -58,7 +58,7 @@ services:
     container_name: superset
     restart: unless-stopped
     env_file:
-      - ../../.env
+      - ${SUPERSET_ENV_FILE:-../../.env}
     depends_on:
       superset-db:
         condition: service_healthy
@@ -91,7 +91,7 @@ services:
     profiles:
       - async
     env_file:
-      - ../../.env
+      - ${SUPERSET_ENV_FILE:-../../.env}
     depends_on:
       superset-db:
         condition: service_healthy
@@ -119,7 +119,7 @@ services:
     profiles:
       - async
     env_file:
-      - ../../.env
+      - ${SUPERSET_ENV_FILE:-../../.env}
     depends_on:
       superset-db:
         condition: service_healthy

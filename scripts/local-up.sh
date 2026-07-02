@@ -12,6 +12,7 @@ echo "🚀 Starting LinkedIn Jobs ETL - Local Environment"
 # Load environment variables
 if [ -f .env.local ]; then
     export $(cat .env.local | grep -v '^#' | xargs)
+    export SUPERSET_ENV_FILE=../../.env.local
     echo "✅ Loaded .env.local"
 else
     echo "⚠️  .env.local not found. Using defaults"
