@@ -105,7 +105,8 @@ fi
 
 DOCKER_GID="$(stat -c '%g' /var/run/docker.sock)"
 AIRFLOW_UID="${AIRFLOW_UID:-50000}"
-export DOCKER_GID AIRFLOW_UID
+SUPERSET_ENV_FILE="${SUPERSET_ENV_FILE:-../../.env.prod}"
+export DOCKER_GID AIRFLOW_UID SUPERSET_ENV_FILE
 echo "🐳 Docker socket group id: $DOCKER_GID"
 
 docker_cmd() {
@@ -113,7 +114,7 @@ docker_cmd() {
 }
 
 compose_cmd() {
-    sudo env DOCKER_GID="$DOCKER_GID" AIRFLOW_UID="$AIRFLOW_UID" $COMPOSE_BIN "$@"
+    sudo env DOCKER_GID="$DOCKER_GID" AIRFLOW_UID="$AIRFLOW_UID" SUPERSET_ENV_FILE="$SUPERSET_ENV_FILE" $COMPOSE_BIN "$@"
 }
 
 # Build ETL Docker image

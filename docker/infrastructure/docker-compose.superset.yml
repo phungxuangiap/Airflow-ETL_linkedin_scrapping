@@ -3,10 +3,8 @@ services:
     image: postgres:16-alpine
     container_name: superset-db
     restart: unless-stopped
-    environment:
-      POSTGRES_DB: ${SUPERSET_DB_NAME:-superset}
-      POSTGRES_USER: ${SUPERSET_DB_USER:-superset}
-      POSTGRES_PASSWORD: ${SUPERSET_DB_PASSWORD:-superset_password}
+    env_file:
+      - ${SUPERSET_ENV_FILE:-../../.env}
     volumes:
       - superset_db_data:/var/lib/postgresql/data
     healthcheck:

@@ -19,10 +19,11 @@ fi
 
 DOCKER_GID="$(stat -c '%g' /var/run/docker.sock 2>/dev/null || echo 989)"
 AIRFLOW_UID="${AIRFLOW_UID:-50000}"
-export DOCKER_GID AIRFLOW_UID
+SUPERSET_ENV_FILE="${SUPERSET_ENV_FILE:-../../.env.prod}"
+export DOCKER_GID AIRFLOW_UID SUPERSET_ENV_FILE
 
 compose_cmd() {
-    sudo env DOCKER_GID="$DOCKER_GID" AIRFLOW_UID="$AIRFLOW_UID" $COMPOSE_BIN "$@"
+    sudo env DOCKER_GID="$DOCKER_GID" AIRFLOW_UID="$AIRFLOW_UID" SUPERSET_ENV_FILE="$SUPERSET_ENV_FILE" $COMPOSE_BIN "$@"
 }
 
 # Stop Airflow first
