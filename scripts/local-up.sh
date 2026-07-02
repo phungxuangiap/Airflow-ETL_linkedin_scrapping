@@ -51,6 +51,13 @@ sleep 10
 echo "🐳 Starting Trino service..."
 docker compose -f trino/docker-compose.yml up -d
 
+# Start Superset after Trino is available for SQL connections
+echo "🐳 Starting Superset services..."
+docker compose -f docker/infrastructure/docker-compose.superset.yml build
+docker compose -f docker/infrastructure/docker-compose.superset.yml up -d superset-db superset-redis
+docker compose -f docker/infrastructure/docker-compose.superset.yml run --rm superset-init
+docker compose -f docker/infrastructure/docker-compose.superset.yml up -d superset
+
 # Start Airflow
 echo "🐳 Starting Airflow services..."
 docker compose -f docker/airflow/docker-compose.yml up -d
@@ -67,6 +74,9 @@ echo ""
 echo "Trino:"
 docker compose -f trino/docker-compose.yml ps
 echo ""
+echo "Superset:"
+docker compose -f docker/infrastructure/docker-compose.superset.yml ps
+echo ""
 echo "Airflow:"
 docker compose -f docker/airflow/docker-compose.yml ps
 
@@ -76,12 +86,14 @@ echo ""
 echo "📊 Access points:"
 echo "  - Airflow UI: http://localhost:8080 (airflow/airflow)"
 echo "  - Trino: http://localhost:8081"
+echo "  - Superset: http://localhost:8088 (admin/admin)"
 echo "  - MinIO Console: http://localhost:9001 (minioadmin/minioadmin)"
 echo "  - MinIO API: http://localhost:9000"
 echo ""
 echo "📝 Logs:"
 echo "  - Infrastructure: docker compose -f docker/infrastructure/docker-compose.yml logs -f"
 echo "  - Trino: docker compose -f trino/docker-compose.yml logs -f"
+echo "  - Superset: docker compose -f docker/infrastructure/docker-compose.superset.yml logs -f"
 echo "  - Airflow: docker compose -f docker/airflow/docker-compose.yml logs -f"
 echo ""
 echo "🛑 Stop: ./scripts/local-down.sh"

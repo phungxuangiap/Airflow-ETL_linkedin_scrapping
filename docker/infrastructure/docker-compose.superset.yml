@@ -1,0 +1,150 @@
+services:
+  superset-db:
+    image: postgres:16-alpine
+    container_name: superset-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${SUPERSET_DB_NAME:-superset}
+      POSTGRES_USER: ${SUPERSET_DB_USER:-superset}
+      POSTGRES_PASSWORD: ${SUPERSET_DB_PASSWORD:-superset_password}
+    volumes:
+      - superset_db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks:
+      - superset_internal
+
+  superset-redis:
+    image: redis:7-alpine
+    container_name: superset-redis
+    restart: unless-stopped
+    volumes:
+      - superset_redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks:
+      - superset_internal
+
+  superset-init:
+    build:
+      context: .
+      dockerfile: Dockerfile.superset
+    container_name: superset-init
+    env_file:
+      - ../../.env
+    depends_on:
+      superset-db:
+        condition: service_healthy
+      superset-redis:
+        condition: service_healthy
+    volumes:
+      - ./superset_config.py:/app/pythonpath/superset_config.py
+      - ./superset-init.sh:/app/init/superset-init.sh:ro
+    command: /bin/sh /app/init/superset-init.sh
+    networks:
+      - superset_internal
+      - data-pipeline-network
+
+  superset:
+    build:
+      context: .
+      dockerfile: Dockerfile.superset
+    container_name: superset
+    restart: unless-stopped
+    env_file:
+      - ../../.env
+    depends_on:
+      superset-db:
+        condition: service_healthy
+      superset-redis:
+        condition: service_healthy
+    volumes:
+      - ./superset_config.py:/app/pythonpath/superset_config.py
+    ports:
+      - "127.0.0.1:8088:8088"
+    command: >
+      /bin/sh -c '
+      gunicorn
+      --bind 0.0.0.0:8088
+      --workers 2
+      --worker-class gthread
+      --threads 20
+      --timeout 120
+      "superset.app:create_app()"
+      '
+    networks:
+      - superset_internal
+      - data-pipeline-network
+
+  superset-worker:
+    build:
+      context: .
+      dockerfile: Dockerfile.superset
+    container_name: superset-worker
+    restart: unless-stopped
+    profiles:
+      - async
+    env_file:
+      - ../../.env
+    depends_on:
+      superset-db:
+        condition: service_healthy
+      superset-redis:
+        condition: service_healthy
+    volumes:
+      - ./superset_config.py:/app/pythonpath/superset_config.py
+    command: >
+      celery
+      --app=superset.tasks.celery_app:app
+      worker
+      --pool=prefork
+      -O fair
+      -c 4
+    networks:
+      - superset_internal
+      - data-pipeline-network
+
+  superset-worker-beat:
+    build:
+      context: .
+      dockerfile: Dockerfile.superset
+    container_name: superset-worker-beat
+    restart: unless-stopped
+    profiles:
+      - async
+    env_file:
+      - ../../.env
+    depends_on:
+      superset-db:
+        condition: service_healthy
+      superset-redis:
+        condition: service_healthy
+    volumes:
+      - ./superset_config.py:/app/pythonpath/superset_config.py
+    command: >
+      celery
+      --app=superset.tasks.celery_app:app
+      beat
+      --pidfile /tmp/celerybeat.pid
+      --schedule /tmp/celerybeat-schedule
+    networks:
+      - superset_internal
+      - data-pipeline-network
+
+volumes:
+  superset_db_data:
+  superset_redis_data:
+
+networks:
+  superset_internal:
+    driver: bridge
+
+  data-pipeline-network:
+    external: true
+    name: data-pipeline-network

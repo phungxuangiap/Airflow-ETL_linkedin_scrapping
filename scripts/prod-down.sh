@@ -29,6 +29,10 @@ compose_cmd() {
 echo "Stopping Airflow services..."
 compose_cmd -f docker/airflow/docker-compose.yml down -v --remove-orphans
 
+# Stop Superset before Trino/backing services
+echo "Stopping Superset services..."
+compose_cmd -f docker/infrastructure/docker-compose.superset.yml down -v --remove-orphans
+
 # Stop Trino before backing services
 echo "Stopping Trino service..."
 compose_cmd -f trino/docker-compose.yml down -v --remove-orphans

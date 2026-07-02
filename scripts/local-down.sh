@@ -13,6 +13,10 @@ echo "🛑 Stopping LinkedIn Jobs ETL - Local Environment"
 echo "Stopping Airflow services..."
 docker compose -f docker/airflow/docker-compose.yml down
 
+# Stop Superset before Trino/backing services
+echo "Stopping Superset services..."
+docker compose -f docker/infrastructure/docker-compose.superset.yml down
+
 # Stop Trino before backing services
 echo "Stopping Trino service..."
 docker compose -f trino/docker-compose.yml down
@@ -26,5 +30,6 @@ echo "✅ Services stopped successfully!"
 echo ""
 echo "💡 To remove all data (volumes):"
 echo "  docker compose -f docker/infrastructure/docker-compose.yml down -v"
+echo "  docker compose -f docker/infrastructure/docker-compose.superset.yml down -v"
 echo "  docker compose -f trino/docker-compose.yml down -v"
 echo "  docker compose -f docker/airflow/docker-compose.yml down -v"

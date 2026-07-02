@@ -127,6 +127,7 @@ docker_cmd network create data-pipeline-network >/dev/null 2>&1 || true
 # Stop existing services
 echo "🛑 Stopping existing services..."
 compose_cmd -f docker/airflow/docker-compose.yml down
+compose_cmd -f docker/infrastructure/docker-compose.superset.yml down
 compose_cmd -f trino/docker-compose.yml down
 compose_cmd -f docker/infrastructure/docker-compose.yml down
 
@@ -146,6 +147,13 @@ sleep 10
 # Start Trino
 echo "🚀 Starting Trino service..."
 compose_cmd -f trino/docker-compose.yml up -d --force-recreate
+
+# Start Superset
+echo "🚀 Starting Superset services..."
+compose_cmd -f docker/infrastructure/docker-compose.superset.yml build
+compose_cmd -f docker/infrastructure/docker-compose.superset.yml up -d superset-db superset-redis
+compose_cmd -f docker/infrastructure/docker-compose.superset.yml run --rm superset-init
+compose_cmd -f docker/infrastructure/docker-compose.superset.yml up -d --force-recreate superset
 
 # Start Airflow
 echo "🚀 Starting Airflow services..."
@@ -173,6 +181,9 @@ compose_cmd -f docker/infrastructure/docker-compose.yml ps
 echo ""
 echo "Trino:"
 compose_cmd -f trino/docker-compose.yml ps
+echo ""
+echo "Superset:"
+compose_cmd -f docker/infrastructure/docker-compose.superset.yml ps
 echo ""
 echo "Airflow:"
 compose_cmd -f docker/airflow/docker-compose.yml ps

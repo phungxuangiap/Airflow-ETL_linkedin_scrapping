@@ -58,6 +58,12 @@ echo -e "${YELLOW}=== Trino Services ===${NC}"
 check_service "Trino Coordinator" "http://localhost:8081/v1/info"
 
 echo ""
+echo -e "${YELLOW}=== Superset Services ===${NC}"
+
+# Check Superset Webserver
+check_service "Superset Webserver" "http://localhost:8088/health"
+
+echo ""
 echo -e "${YELLOW}=== Airflow Services ===${NC}"
 
 # Check Airflow Webserver
