@@ -10,7 +10,7 @@ from src.constants.table_names import (
     STAGING_SILVER_COMPANIES,
 )
 from src.jobs.staging.utils import load_table_as_arrow, overwrite_staging_table
-from src.jobs.silver.clean_jobs import clean_api_source_jobs, clean_scrapped_source_jobs
+from src.jobs.silver.clean_jobs import clean_scrapped_source_jobs
 from src.jobs.silver.deduplicate_jobs import deduplicate_jobs, deduplicate_companies
 from src.jobs.silver.load_silver import load_jobs_to_silver, load_companies_to_silver
 
@@ -20,23 +20,16 @@ logger = get_logger(__name__)
 def build_silver_batch(load_date: str) -> Dict[str, pa.Table]:
     logger.info(f"Building Silver batch for load_date={load_date}")
 
-    logger.info("Step 1/4: Cleaning API source data...")
-    api_data = clean_api_source_jobs(load_date)
-    logger.info(f"  ✓ Cleaned {api_data['jobs'].num_rows} API jobs")
-    logger.info(f"  ✓ Cleaned {api_data['companies'].num_rows} API companies")
-
-    logger.info("Step 2/4: Cleaning scrapped source data...")
+    logger.info("Step 1/3: Cleaning scrapped source data...")
     scrapped_data = clean_scrapped_source_jobs(load_date)
     logger.info(f"  ✓ Cleaned {scrapped_data['jobs'].num_rows} scrapped jobs")
     logger.info(f"  ✓ Cleaned {scrapped_data['companies'].num_rows} scrapped companies")
 
-    logger.info("Step 3/4: Merging data from both sources...")
-    merged_jobs = pa.concat_tables([api_data['jobs'], scrapped_data['jobs']])
-    merged_companies = pa.concat_tables([api_data['companies'], scrapped_data['companies']])
-    logger.info(f"  ✓ Merged {merged_jobs.num_rows} total jobs")
-    logger.info(f"  ✓ Merged {merged_companies.num_rows} total companies")
+    logger.info("Step 2/3: Preparing scrapped data for deduplication...")
+    merged_jobs = scrapped_data['jobs']
+    merged_companies = scrapped_data['companies']
 
-    logger.info("Step 4/4: Deduplicating data...")
+    logger.info("Step 3/3: Deduplicating data...")
     deduped_jobs = deduplicate_jobs(merged_jobs)
     deduped_companies = deduplicate_companies(merged_companies)
 
@@ -51,8 +44,8 @@ def build_silver_batch(load_date: str) -> Dict[str, pa.Table]:
     return {
         'jobs': deduped_jobs,
         'companies': deduped_companies,
-        'api_jobs_input': api_data['jobs'].num_rows,
-        'api_companies_input': api_data['companies'].num_rows,
+        'api_jobs_input': 0,
+        'api_companies_input': 0,
         'scrapped_jobs_input': scrapped_data['jobs'].num_rows,
         'scrapped_companies_input': scrapped_data['companies'].num_rows,
         'merged_jobs': merged_jobs.num_rows,

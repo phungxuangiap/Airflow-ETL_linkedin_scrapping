@@ -1,3 +1,4 @@
+import json
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, Any, List
@@ -32,32 +33,37 @@ def _upload_generated_file_to_staging(extract_result: Dict[str, Any], object_nam
     }
 
 
-def extract_and_stage_api_jobs(load_date: str, **context) -> Dict[str, Any]:
-    try:
-        from data_generation.generate_api_data import generate_api_files
+def _write_jobs_to_jsonl(jobs: List[Dict[str, Any]], base_path: str, filename_prefix: str) -> Dict[str, Any]:
+    Path(base_path).mkdir(parents=True, exist_ok=True)
 
-        logger.info("Extracting API jobs...")
-        extract_result = generate_api_files(base_path=settings.API_SOURCE_DIR)
+    timestamp = datetime.now()
+    timestamp_str = timestamp.strftime("%Y%m%d_%H%M%S")
+    filepath = Path(base_path) / f"{filename_prefix}_{timestamp_str}.jsonl"
 
-        logger.info(f"API jobs extracted: {extract_result['job_count']} jobs")
-        logger.info(f"File created: {extract_result['filepath']}")
+    with open(filepath, 'w', encoding='utf-8') as file:
+        for job in jobs:
+            file.write(json.dumps(job, ensure_ascii=False) + '\n')
 
-        file_path = Path(extract_result['filepath'])
-        object_name = f"staging/bronze/api_data/{settings.ENTITY_TYPE}/load_date={load_date}/{file_path.name}"
-
-        return _upload_generated_file_to_staging(extract_result, object_name, 'api', load_date)
-
-    except Exception as e:
-        logger.error(f"Failed to extract and stage API jobs: {e}")
-        raise
+    return {
+        'filepath': str(filepath),
+        'filename': filepath.name,
+        'job_count': len(jobs),
+        'timestamp': timestamp.isoformat(),
+        'file_size': filepath.stat().st_size
+    }
 
 
 def extract_and_stage_scrapped_jobs(load_date: str, **context) -> Dict[str, Any]:
     try:
-        from data_generation.generate_scrapped_data import generate_scrapped_files
+        from src.jobs.ingestion.scrapper import run_ingestion_pipeline
 
         logger.info("Extracting scrapped jobs...")
-        extract_result = generate_scrapped_files(base_path=settings.SCRAPPED_SOURCE_DIR)
+        jobs = run_ingestion_pipeline()
+        extract_result = _write_jobs_to_jsonl(
+            jobs,
+            settings.SCRAPPED_SOURCE_DIR,
+            "linkedin_jobs_scrapped",
+        )
 
         logger.info(f"Scrapped jobs extracted: {extract_result['job_count']} jobs")
         logger.info(f"File created: {extract_result['filepath']}")
@@ -97,14 +103,13 @@ def process_to_staging(load_date: str = None, **context) -> Dict[str, Any]:
 
     logger.info(f"Starting Bronze process to staging for load_date={load_date}")
 
-    api_result = extract_and_stage_api_jobs(load_date=load_date, **context)
     scrapped_result = extract_and_stage_scrapped_jobs(load_date=load_date, **context)
 
     result = {
-        'api_jobs': api_result['job_count'],
+        'api_jobs': 0,
         'scrapped_jobs': scrapped_result['job_count'],
-        'total_jobs': api_result['job_count'] + scrapped_result['job_count'],
-        'api_staging_path': api_result['staging_path'],
+        'total_jobs': scrapped_result['job_count'],
+        'api_staging_path': None,
         'scrapped_staging_path': scrapped_result['staging_path'],
         'load_date': load_date,
         'timestamp': datetime.now().isoformat()
@@ -121,19 +126,16 @@ def promote_staging_to_bronze(load_date: str = None, **context) -> Dict[str, Any
     logger.info(f"Promoting Bronze staging to Bronze for load_date={load_date}")
 
     client = get_minio_client()
-    api_staging_prefix = f"staging/bronze/api_data/{settings.ENTITY_TYPE}/load_date={load_date}/"
-    api_target_prefix = f"bronze/api_data/{settings.ENTITY_TYPE}/load_date={load_date}/"
     scrapped_staging_prefix = f"staging/bronze/crawler_data/{settings.SOURCE_WEB_NAME}/{settings.ENTITY_TYPE}/load_date={load_date}/"
     scrapped_target_prefix = f"bronze/crawler_data/{settings.SOURCE_WEB_NAME}/{settings.ENTITY_TYPE}/load_date={load_date}/"
 
-    api_promoted = _copy_objects(client, api_staging_prefix, api_target_prefix)
     scrapped_promoted = _copy_objects(client, scrapped_staging_prefix, scrapped_target_prefix)
 
     result = {
-        'api_files_promoted': len(api_promoted),
+        'api_files_promoted': 0,
         'scrapped_files_promoted': len(scrapped_promoted),
-        'total_files_promoted': len(api_promoted) + len(scrapped_promoted),
-        'api_bronze_paths': api_promoted,
+        'total_files_promoted': len(scrapped_promoted),
+        'api_bronze_paths': [],
         'scrapped_bronze_paths': scrapped_promoted,
         'load_date': load_date,
         'timestamp': datetime.now().isoformat()

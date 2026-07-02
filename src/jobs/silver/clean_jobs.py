@@ -178,22 +178,17 @@ def run(load_date: str = None, **context) -> Dict[str, int]:
 
     logger.info("Starting data cleaning")
 
-    api_data = clean_api_source_jobs(load_date)
     scrapped_data = clean_scrapped_source_jobs(load_date)
 
     result = {
-        'api_jobs_cleaned': api_data['jobs'].num_rows,
-        'api_companies_cleaned': api_data['companies'].num_rows,
+        'api_jobs_cleaned': 0,
+        'api_companies_cleaned': 0,
         'scrapped_jobs_cleaned': scrapped_data['jobs'].num_rows,
         'scrapped_companies_cleaned': scrapped_data['companies'].num_rows,
-        'total_jobs': api_data['jobs'].num_rows + scrapped_data['jobs'].num_rows,
-        'total_companies': api_data['companies'].num_rows + scrapped_data['companies'].num_rows
+        'total_jobs': scrapped_data['jobs'].num_rows,
+        'total_companies': scrapped_data['companies'].num_rows
     }
 
     logger.info(f"Cleaning completed: {result}")
-
-    # Store in context for next task
-    context['ti'].xcom_push(key='cleaned_api_data', value=api_data)
-    context['ti'].xcom_push(key='cleaned_scrapped_data', value=scrapped_data)
 
     return result

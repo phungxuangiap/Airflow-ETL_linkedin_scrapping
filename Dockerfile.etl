@@ -19,7 +19,6 @@ RUN pip install --no-cache-dir --upgrade pip && \
 # Copy application code
 COPY main.py .
 COPY src/ ./src/
-COPY data_generation/ ./data_generation/
 
 # Create necessary directories
 RUN mkdir -p /app/tmp/api_sources /app/tmp/scrapping_script /app/logs

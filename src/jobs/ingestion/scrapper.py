@@ -1,6 +1,8 @@
 import importlib
 import json
 import os
+import random
+import time
 from pathlib import Path
 from pprint import pformat
 from typing import Any, Dict, Iterable, List, Optional
@@ -20,6 +22,9 @@ except ImportError:  # pragma: no cover - runtime dependency guard
 
 LOGGER = get_logger(__name__)
 REQUEST_TIMEOUT_SECONDS = 20
+REQUEST_DELAY_MIN_SECONDS = 2.0
+REQUEST_DELAY_MAX_SECONDS = 7.0
+PROXY_SWITCH_INTERVAL = 100
 REQUEST_HEADERS = {
     "User-Agent": (
         "Mozilla/5.0 (X11; Linux x86_64) "
@@ -60,9 +65,13 @@ DETAIL_ENRICHMENT_FIELDS = [
     "number_applicants",
 ]
 NULLABLE_FIELDS = set(SOURCE_CONFIG_FIELDS) - {"source_name", "title", "prefix_job_url", "job_url"}
+_CRAWLER_REQUEST_COUNT = 0
+_LAST_FETCH_AT: Optional[float] = None
+_MISSING_PROXY_CONFIG_LOGGED = False
 
 
 def load_job_sources() -> List[Dict[str, Any]]:
+    """Load configured job sources from the jobs_source config module."""
     configured_sources = getattr(jobs_source, "JOBS_SOURCE", None) or getattr(jobs_source, "jobs_source", None)
     if configured_sources is None:
         configured_sources = getattr(jobs_source, "JOB_SOURCES", None) or getattr(jobs_source, "job_sources", None)
@@ -78,12 +87,18 @@ def load_job_sources() -> List[Dict[str, Any]]:
 
 
 def fetch_html(url: str) -> Optional[str]:
+    """Fetch HTML content from a URL with human-like pacing and proxy rotation."""
     if not url:
         LOGGER.warning("Skip fetching empty URL")
         return None
 
+    _wait_between_fetches()
+    request_number = _next_crawler_request_number()
+    proxy = _proxy_for_request(request_number)
+    proxies = {"http": proxy, "https": proxy} if proxy else None
+
     try:
-        response = requests.get(url, headers=REQUEST_HEADERS, timeout=REQUEST_TIMEOUT_SECONDS)
+        response = requests.get(url, headers=REQUEST_HEADERS, timeout=REQUEST_TIMEOUT_SECONDS, proxies=proxies)
         response.raise_for_status()
         return response.text
     except requests.Timeout:
@@ -93,12 +108,98 @@ def fetch_html(url: str) -> Optional[str]:
     return None
 
 
+def _next_crawler_request_number() -> int:
+    """Increment and return the crawler request count used for proxy rotation."""
+    global _CRAWLER_REQUEST_COUNT
+    _CRAWLER_REQUEST_COUNT += 1
+    return _CRAWLER_REQUEST_COUNT
+
+
+def _wait_between_fetches() -> None:
+    """Sleep a random amount between crawler requests to avoid a fixed request cadence."""
+    global _LAST_FETCH_AT
+
+    if _LAST_FETCH_AT is None:
+        _LAST_FETCH_AT = time.monotonic()
+        return
+
+    min_delay = _get_float_env("CRAWLER_REQUEST_DELAY_MIN_SECONDS", REQUEST_DELAY_MIN_SECONDS)
+    max_delay = _get_float_env("CRAWLER_REQUEST_DELAY_MAX_SECONDS", REQUEST_DELAY_MAX_SECONDS)
+    if max_delay < min_delay:
+        LOGGER.warning("CRAWLER_REQUEST_DELAY_MAX_SECONDS is lower than min; using %.2fs", min_delay)
+        max_delay = min_delay
+
+    delay = random.uniform(min_delay, max_delay)
+    LOGGER.info("Waiting %.2fs before next crawler request", delay)
+    time.sleep(delay)
+    _LAST_FETCH_AT = time.monotonic()
+
+
+def _proxy_for_request(request_number: int) -> Optional[str]:
+    """Return the proxy assigned to a request number, rotating every configured interval."""
+    global _MISSING_PROXY_CONFIG_LOGGED
+
+    proxies = _get_crawler_proxies()
+    if not proxies:
+        if not _MISSING_PROXY_CONFIG_LOGGED:
+            LOGGER.info("CRAWLER_PROXIES is not configured; crawler IP rotation is disabled")
+            _MISSING_PROXY_CONFIG_LOGGED = True
+        return None
+
+    switch_interval = max(1, _get_int_env("CRAWLER_PROXY_SWITCH_INTERVAL", PROXY_SWITCH_INTERVAL))
+    proxy_index = ((request_number - 1) // switch_interval) % len(proxies)
+    if (request_number - 1) % switch_interval == 0:
+        LOGGER.info(
+            "Using crawler proxy %s/%s for requests %s-%s",
+            proxy_index + 1,
+            len(proxies),
+            request_number,
+            request_number + switch_interval - 1,
+        )
+    return proxies[proxy_index]
+
+
+def _get_crawler_proxies() -> List[str]:
+    """Load comma-separated crawler proxies from the environment."""
+    _load_env_file()
+    raw_proxies = os.getenv("CRAWLER_PROXIES", "")
+    return [proxy.strip() for proxy in raw_proxies.split(",") if proxy.strip()]
+
+
+def _get_float_env(name: str, default: float) -> float:
+    """Read a float environment variable, falling back when it is missing or invalid."""
+    _load_env_file()
+    raw_value = os.getenv(name)
+    if raw_value is None:
+        return default
+    try:
+        return float(raw_value)
+    except ValueError:
+        LOGGER.warning("Invalid %s=%r; using %.2f", name, raw_value, default)
+        return default
+
+
+def _get_int_env(name: str, default: int) -> int:
+    """Read an integer environment variable, falling back when it is missing or invalid."""
+    _load_env_file()
+    raw_value = os.getenv(name)
+    if raw_value is None:
+        return default
+    try:
+        return int(raw_value)
+    except ValueError:
+        LOGGER.warning("Invalid %s=%r; using %s", name, raw_value, default)
+        return default
+
+
 def _require_html_parser() -> None:
+    """Ensure BeautifulSoup is available before HTML parsing is attempted."""
     if BeautifulSoup is None:
         raise RuntimeError("BeautifulSoup is required for HTML parsing. Install beautifulsoup4 to run scrapper.py")
 
 
 def _select_elements(html: str, selector: Optional[str]) -> List[Any]:
+    """Select HTML elements matching a CSS selector from a raw HTML string."""
     _require_html_parser()
     if not html or not selector:
         return []
@@ -106,6 +207,7 @@ def _select_elements(html: str, selector: Optional[str]) -> List[Any]:
 
 
 def extract_job_items_html(source: Dict[str, Any], html: Optional[str]) -> List[str]:
+    """Extract individual job listing HTML blocks for a configured source."""
     source_name = source.get("source_name", "unknown")
     entry_point = source.get("entry_point")
     if not html:
@@ -123,11 +225,13 @@ def extract_job_items_html(source: Dict[str, Any], html: Optional[str]) -> List[
 
 
 def _source_entry_url(source: Dict[str, Any]) -> str:
+    """Build the absolute entry URL used to crawl a job source."""
     base_url = source.get("base_url", "")
     return urljoin(base_url, source.get("url") or base_url)
 
 
 def collect_jobs_html_by_source() -> Dict[str, List[str]]:
+    """Crawl all configured sources and group extracted job item HTML by source name."""
     jobs_html: Dict[str, List[str]] = {}
     for source in load_job_sources():
         source_name = source["source_name"]
@@ -139,6 +243,7 @@ def collect_jobs_html_by_source() -> Dict[str, List[str]]:
 
 
 def load_source_configs() -> List[Dict[str, Any]]:
+    """Load persisted selector configs from source_config.py if it exists."""
     if not SOURCE_CONFIG_PATH.exists():
         return []
 
@@ -156,12 +261,14 @@ def load_source_configs() -> List[Dict[str, Any]]:
 
 
 def _is_config_field_complete(config: Dict[str, Any], field: str) -> bool:
+    """Check whether a selector config field satisfies required or nullable rules."""
     if field in NULLABLE_FIELDS:
         return field in config
     return bool(config.get(field))
 
 
 def is_source_config_complete(source_config: Dict[str, Any]) -> bool:
+    """Return whether a source selector config contains all expected fields."""
     return all(_is_config_field_complete(source_config, field) for field in SOURCE_CONFIG_FIELDS)
 
 
@@ -169,6 +276,7 @@ def get_missing_source_configs(
     sources: Iterable[Dict[str, Any]],
     source_configs: Iterable[Dict[str, Any]],
 ) -> List[Dict[str, Any]]:
+    """Find sources that do not have a complete selector configuration."""
     config_by_source = {config.get("source_name"): config for config in source_configs}
     missing_sources = []
 
@@ -183,6 +291,7 @@ def get_missing_source_configs(
 
 
 def _normalize_ai_config(source_name: str, ai_config: Dict[str, Any]) -> Dict[str, Any]:
+    """Normalize an AI-generated selector config to the expected schema."""
     normalized = {field: ai_config.get(field) for field in SOURCE_CONFIG_FIELDS}
     normalized["source_name"] = source_name
     normalized["prefix_job_url"] = normalized.get("prefix_job_url") or ""
@@ -198,6 +307,7 @@ def _normalize_ai_config(source_name: str, ai_config: Dict[str, Any]) -> Dict[st
 
 
 def _load_env_file() -> None:
+    """Load key-value pairs from the project .env file into the process environment."""
     env_path = PROJECT_ROOT / ".env"
     if not env_path.exists():
         return
@@ -211,11 +321,13 @@ def _load_env_file() -> None:
 
 
 def _get_groq_api_key() -> Optional[str]:
+    """Load and return the Groq API key used for AI selector generation."""
     _load_env_file()
     return os.getenv("GROQ_API_KEY")
 
 
 def _extract_json_object(raw_response: str) -> Dict[str, Any]:
+    """Parse a JSON object from an AI response, tolerating wrapped JSON text."""
     try:
         parsed = json.loads(raw_response)
     except json.JSONDecodeError:
@@ -241,6 +353,7 @@ def ask_ai_for_source_config(
     fields: List[str],
     source_url: str = "",
 ) -> Dict[str, Any]:
+    """Ask Groq to infer selector config values for a source from sample HTML."""
     api_key = _get_groq_api_key()
     if not api_key:
         LOGGER.warning("GROQ_API_KEY is not configured; cannot auto-generate selectors for %s", source_name)
@@ -294,11 +407,13 @@ def ask_ai_for_source_config(
 
 
 def generate_source_config_from_ai(source_name: str, job_html: str, source_url: str = "") -> Dict[str, Any]:
+    """Generate and normalize a complete source selector config from one job HTML block."""
     ai_config = ask_ai_for_source_config(source_name, job_html, SOURCE_CONFIG_FIELDS, source_url)
     return _normalize_ai_config(source_name, ai_config)
 
 
 def extract_value_by_selector(job_html: str, selector_config: Optional[str]) -> Optional[str]:
+    """Extract text or an attribute from job HTML using the configured selector syntax."""
     if not selector_config:
         return None
 
@@ -335,6 +450,7 @@ def extract_value_by_selector(job_html: str, selector_config: Optional[str]) -> 
 
 
 def fetch_job_detail_html(source: Dict[str, Any], job_url: Optional[str], prefix_job_url: str = "") -> Optional[str]:
+    """Fetch a job detail page and optionally reduce it to the configured detail section."""
     if not job_url:
         LOGGER.warning("Cannot fetch detail page for %s because job_url is empty", source.get("source_name"))
         return None
@@ -360,6 +476,7 @@ def complete_source_config_from_detail_page(
     source_config: Dict[str, Any],
     job_html: str,
 ) -> Dict[str, Any]:
+    """Use a job detail page to fill missing enrichment selectors in a source config."""
     job_url = extract_value_by_selector(job_html, source_config.get("job_url"))
     detail_html = fetch_job_detail_html(source, job_url, source_config.get("prefix_job_url") or source.get("base_url", ""))
     if not detail_html:
@@ -378,6 +495,7 @@ def complete_source_config_from_detail_page(
 
 
 def write_source_config_py(source_configs: List[Dict[str, Any]]) -> None:
+    """Persist source selector configs to source_config.py in stable source-name order."""
     ordered_configs = sorted(source_configs, key=lambda config: config.get("source_name", ""))
     content = "SOURCE_CONFIGS = " + pformat(ordered_configs, sort_dicts=False, width=120) + "\n"
     SOURCE_CONFIG_PATH.write_text(content, encoding="utf-8")
@@ -385,6 +503,7 @@ def write_source_config_py(source_configs: List[Dict[str, Any]]) -> None:
 
 
 def ensure_source_configs(jobs_html: Dict[str, List[str]]) -> List[Dict[str, Any]]:
+    """Ensure every configured source has selectors, generating missing configs with AI."""
     sources = load_job_sources()
     source_configs = load_source_configs()
     missing_sources = get_missing_source_configs(sources, source_configs)
@@ -410,12 +529,14 @@ def ensure_source_configs(jobs_html: Dict[str, List[str]]) -> List[Dict[str, Any
 
 
 def normalize_job_url(job_url: Optional[str], prefix_job_url: str) -> Optional[str]:
+    """Resolve a job URL against its prefix when the scraped value is relative."""
     if not job_url:
         return None
     return urljoin(prefix_job_url, job_url) if prefix_job_url else job_url
 
 
 def extract_description_html(job_html: str, detail_entry_point: Optional[str]) -> Optional[str]:
+    """Extract the configured description/detail HTML block from a job listing."""
     if not detail_entry_point:
         return None
 
@@ -429,6 +550,7 @@ def extract_job_from_html(
     source_config: Dict[str, Any],
     source: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Optional[str]]:
+    """Convert one job listing HTML block into a normalized raw job dictionary."""
     job: Dict[str, Optional[str]] = {"source_name": source_name}
     for field in SOURCE_CONFIG_FIELDS:
         if field in {"source_name", "prefix_job_url", "description"}:
@@ -447,6 +569,7 @@ def extract_jobs_for_source(
     html_items: List[str],
     source_config: Dict[str, Any],
 ) -> List[Dict[str, Optional[str]]]:
+    """Extract and store raw jobs for one source from its job listing HTML blocks."""
     source_name = source["source_name"]
     source_jobs: List[Dict[str, Optional[str]]] = []
 
@@ -461,35 +584,13 @@ def extract_jobs_for_source(
     return source_jobs
 
 
-def extract_jobs_by_source(
-    jobs_html: Dict[str, List[str]],
-    source_configs: List[Dict[str, Any]],
-) -> List[Dict[str, Optional[str]]]:
-    jobs: List[Dict[str, Optional[str]]] = []
-    config_by_source = {config.get("source_name"): config for config in source_configs}
-    source_by_name = {source.get("source_name"): source for source in load_job_sources()}
-
-    for source_name, html_items in jobs_html.items():
-        source_config = config_by_source.get(source_name)
-        source = source_by_name.get(source_name)
-        if not source_config:
-            LOGGER.warning("Skip source %s because selector config is missing", source_name)
-            continue
-        if not source:
-            LOGGER.warning("Skip source %s because source definition is missing", source_name)
-            continue
-
-        jobs.extend(extract_jobs_for_source(source, html_items, source_config))
-
-    LOGGER.info("Extracted %s jobs in total", len(jobs))
-    return jobs
-
 
 def _get_source_config_for_crawled_source(
     source: Dict[str, Any],
     html_items: List[str],
     config_by_source: Dict[str, Dict[str, Any]],
 ) -> Optional[Dict[str, Any]]:
+    """Return an existing complete config or generate one from crawled source HTML."""
     source_name = source["source_name"]
     source_config = config_by_source.get(source_name)
     if source_config and is_source_config_complete(source_config):
@@ -507,6 +608,7 @@ def _get_source_config_for_crawled_source(
 
 
 def run_ingestion_pipeline() -> List[Dict[str, Optional[str]]]:
+    """Run the end-to-end ingestion flow from crawling through raw job storage."""
     LOGGER.info("Start job ingestion pipeline")
     jobs: List[Dict[str, Optional[str]]] = []
     config_by_source = {config.get("source_name"): config for config in load_source_configs()}
@@ -529,5 +631,3 @@ def run_ingestion_pipeline() -> List[Dict[str, Optional[str]]]:
     return jobs
 
 
-if __name__ == "__main__":
-    run_ingestion_pipeline()

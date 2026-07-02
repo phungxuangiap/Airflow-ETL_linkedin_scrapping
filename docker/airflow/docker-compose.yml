@@ -41,7 +41,6 @@ x-airflow-common:
   volumes:
     - ../../dags:/opt/airflow/dags
     - ../../src:/opt/airflow/src
-    - ../../data_generation:/opt/airflow/data_generation
     - ../../logs:/opt/airflow/logs
     - ../../plugins:/opt/airflow/plugins
     - ../../tmp:/opt/airflow/tmp
