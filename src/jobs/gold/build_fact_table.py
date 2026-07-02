@@ -60,10 +60,10 @@ def build_fact_hiring(load_date: str = None) -> pa.Table:
                 STRFTIME(CAST(processed_at AS DATE), '%Y%m%d') as date_id,
                 CASE
                     WHEN len(role) > 0 THEN MD5(role[1])
-                    ELSE NULL
+                    ELSE MD5('Unknown')
                 END as role_id,
-                MD5(level) as level_id,
-                MD5(location_type) as working_model,
+                MD5(COALESCE(NULLIF(level, ''), 'Unknown')) as level_id,
+                MD5(COALESCE(NULLIF(location_type, ''), 'N/A')) as working_model,
                 CAST(0 AS INTEGER) as salary_min_vnd,
                 CAST(0 AS INTEGER) as salary_max_vnd,
                 number_applicants as number_of_applicants,

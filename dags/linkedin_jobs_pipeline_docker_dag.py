@@ -7,6 +7,21 @@ from datetime import datetime, timedelta
 from airflow import DAG
 from airflow.providers.docker.operators.docker import DockerOperator
 
+BUCKET = os.getenv('BUCKET', 'airflow-bucket')
+S3_ENDPOINT = os.getenv('S3_ENDPOINT', 'http://minio:9000')
+S3_ACCESS_KEY = os.getenv('S3_ACCESS_KEY', 'minioadmin')
+S3_SECRET_KEY = os.getenv('S3_SECRET_KEY', 'minioadmin')
+S3_REGION = os.getenv('S3_REGION', 'us-east-1')
+ICEBERG_CATALOG_URI = os.getenv(
+    'ICEBERG_CATALOG_URI',
+    'postgresql://iceberg:iceberg123@postgres-iceberg:5432/iceberg_catalog',
+)
+ICEBERG_CATALOG_NAME = os.getenv('ICEBERG_CATALOG_NAME', 'lakehouse')
+ICEBERG_WAREHOUSE_PATH = os.getenv('ICEBERG_WAREHOUSE_PATH', f's3://{BUCKET}/warehouse')
+BRONZE_PATH = os.getenv('BRONZE_PATH', f's3://{BUCKET}/bronze/crawler_data/linkedin/jobs')
+SILVER_PATH = os.getenv('SILVER_PATH', f's3://{BUCKET}/silver')
+GOLD_PATH = os.getenv('GOLD_PATH', f's3://{BUCKET}/gold/analytics')
+
 # Default arguments
 default_args = {
     'owner': 'data-engineering',
@@ -28,21 +43,23 @@ docker_config = {
     'mount_tmp_dir': False,
     'environment': {
         # S3/MinIO Configuration
-        'AWS_ENDPOINT_URL': 'http://minio:9000',
-        'AWS_ACCESS_KEY_ID': 'minioadmin',
-        'AWS_SECRET_ACCESS_KEY': 'minioadmin',
-        'AWS_S3_BUCKET': 'airflow-bucket',
-        'AWS_REGION': 'us-east-1',
-        'S3_ENDPOINT': 'http://minio:9000',
-        'S3_ACCESS_KEY': 'minioadmin',
-        'S3_SECRET_KEY': 'minioadmin',
-        'S3_REGION': 'us-east-1',
+        'AWS_ENDPOINT_URL': os.getenv('AWS_ENDPOINT_URL', S3_ENDPOINT),
+        'AWS_ACCESS_KEY_ID': os.getenv('AWS_ACCESS_KEY_ID', S3_ACCESS_KEY),
+        'AWS_SECRET_ACCESS_KEY': os.getenv('AWS_SECRET_ACCESS_KEY', S3_SECRET_KEY),
+        'AWS_S3_BUCKET': os.getenv('AWS_S3_BUCKET', BUCKET),
+        'AWS_REGION': os.getenv('AWS_REGION', S3_REGION),
+        'S3_ENDPOINT': S3_ENDPOINT,
+        'S3_ACCESS_KEY': S3_ACCESS_KEY,
+        'S3_SECRET_KEY': S3_SECRET_KEY,
+        'S3_REGION': S3_REGION,
+        'S3_USE_SSL': os.getenv('S3_USE_SSL', 'false'),
+        'S3_PATH_STYLE': os.getenv('S3_PATH_STYLE', 'true'),
 
         # Iceberg SQL Catalog Configuration
         'ICEBERG_CATALOG_TYPE': 'sql',
-        'ICEBERG_CATALOG_URI': 'postgresql://iceberg:iceberg123@postgres-iceberg:5432/iceberg_catalog',
-        'ICEBERG_CATALOG_NAME': 'lakehouse',
-        'ICEBERG_WAREHOUSE_PATH': 's3://airflow-bucket/warehouse',
+        'ICEBERG_CATALOG_URI': ICEBERG_CATALOG_URI,
+        'ICEBERG_CATALOG_NAME': ICEBERG_CATALOG_NAME,
+        'ICEBERG_WAREHOUSE_PATH': ICEBERG_WAREHOUSE_PATH,
 
         # AI Selector Configuration
         'GROQ_API_KEY': os.getenv('GROQ_API_KEY', ''),
@@ -55,10 +72,10 @@ docker_config = {
         'CRAWLER_PROXIES': os.getenv('CRAWLER_PROXIES', ''),
 
         # Paths
-        'BUCKET': 'airflow-bucket',
-        'BRONZE_PATH': 's3://airflow-bucket/bronze/crawler_data/linkedin/jobs',
-        'SILVER_PATH': 's3://airflow-bucket/silver',
-        'GOLD_PATH': 's3://airflow-bucket/gold/analytics',
+        'BUCKET': BUCKET,
+        'BRONZE_PATH': BRONZE_PATH,
+        'SILVER_PATH': SILVER_PATH,
+        'GOLD_PATH': GOLD_PATH,
     },
 }
 

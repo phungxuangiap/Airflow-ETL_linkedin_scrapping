@@ -49,17 +49,27 @@ def build_dim_company() -> pa.Table:
     with DuckDBClient() as client:
         register_silver_table(client, SILVER_COMPANIES, "silver_companies")
         query = """
-            SELECT DISTINCT
-                id,
-                name,
-                location,
-                industry,
-                COALESCE(
-                    TRY_CAST(REPLACE(SPLIT_PART(company_size, '-', 1), ',', '') AS INTEGER),
-                    0
-                ) as company_size
-            FROM silver_companies
-            WHERE id != 'Unknown'
+            WITH dim AS (
+                SELECT DISTINCT
+                    id,
+                    name,
+                    location,
+                    industry,
+                    COALESCE(
+                        TRY_CAST(REPLACE(SPLIT_PART(company_size, '-', 1), ',', '') AS INTEGER),
+                        0
+                    ) as company_size
+                FROM silver_companies
+                WHERE id != 'Unknown'
+            )
+            SELECT * FROM dim
+            UNION ALL
+            SELECT
+                'Unknown' as id,
+                'Unknown' as name,
+                'Unknown' as location,
+                'Unknown' as industry,
+                CAST(0 AS INTEGER) as company_size
         """
         return client.fetch_arrow_table(query)
 
@@ -117,11 +127,16 @@ def build_dim_source() -> pa.Table:
     with DuckDBClient() as client:
         register_silver_table(client, SILVER_JOBS, "silver_jobs")
         query = """
-            SELECT DISTINCT
-                MD5(source_name) as id,
-                source_name
-            FROM silver_jobs
-            WHERE source_name != 'Unknown'
+            WITH dim AS (
+                SELECT DISTINCT
+                    MD5(source_name) as id,
+                    source_name
+                FROM silver_jobs
+                WHERE source_name != 'Unknown'
+            )
+            SELECT * FROM dim
+            UNION ALL
+            SELECT MD5('Unknown') as id, 'Unknown' as source_name
         """
         return client.fetch_arrow_table(query)
 
@@ -133,14 +148,19 @@ def build_dim_role() -> pa.Table:
     with DuckDBClient() as client:
         register_silver_table(client, SILVER_JOBS, "silver_jobs")
         query = """
-            SELECT DISTINCT
-                MD5(role_item) as id,
-                role_item as role_name
-            FROM (
-                SELECT UNNEST(role) as role_item
-                FROM silver_jobs
-                WHERE role IS NOT NULL AND len(role) > 0
+            WITH dim AS (
+                SELECT DISTINCT
+                    MD5(role_item) as id,
+                    role_item as role_name
+                FROM (
+                    SELECT UNNEST(role) as role_item
+                    FROM silver_jobs
+                    WHERE role IS NOT NULL AND len(role) > 0
+                )
             )
+            SELECT * FROM dim
+            UNION ALL
+            SELECT MD5('Unknown') as id, 'Unknown' as role_name
         """
         return client.fetch_arrow_table(query)
 
@@ -152,11 +172,16 @@ def build_dim_level() -> pa.Table:
     with DuckDBClient() as client:
         register_silver_table(client, SILVER_JOBS, "silver_jobs")
         query = """
-            SELECT DISTINCT
-                MD5(level) as id,
-                level as level_name
-            FROM silver_jobs
-            WHERE level != 'Unknown'
+            WITH dim AS (
+                SELECT DISTINCT
+                    MD5(level) as id,
+                    level as level_name
+                FROM silver_jobs
+                WHERE level != 'Unknown'
+            )
+            SELECT * FROM dim
+            UNION ALL
+            SELECT MD5('Unknown') as id, 'Unknown' as level_name
         """
         return client.fetch_arrow_table(query)
 
@@ -168,11 +193,16 @@ def build_dim_working_model() -> pa.Table:
     with DuckDBClient() as client:
         register_silver_table(client, SILVER_JOBS, "silver_jobs")
         query = """
-            SELECT DISTINCT
-                MD5(location_type) as id,
-                location_type as name
-            FROM silver_jobs
-            WHERE location_type != 'N/A'
+            WITH dim AS (
+                SELECT DISTINCT
+                    MD5(location_type) as id,
+                    location_type as name
+                FROM silver_jobs
+                WHERE location_type != 'N/A'
+            )
+            SELECT * FROM dim
+            UNION ALL
+            SELECT MD5('N/A') as id, 'N/A' as name
         """
         return client.fetch_arrow_table(query)
 
@@ -184,22 +214,27 @@ def build_dim_techstack() -> pa.Table:
     with DuckDBClient() as client:
         register_silver_table(client, SILVER_JOBS, "silver_jobs")
         query = """
-            SELECT DISTINCT
-                MD5(tech_item) as id,
-                tech_item as tech_name,
-                CASE
-                    WHEN tech_item IN ('python', 'java', 'javascript', 'typescript', 'go', 'rust', 'c++') THEN 'Programming Language'
-                    WHEN tech_item IN ('react', 'vue', 'angular', 'nextjs') THEN 'Frontend Framework'
-                    WHEN tech_item IN ('django', 'flask', 'spring', 'express') THEN 'Backend Framework'
-                    WHEN tech_item IN ('postgresql', 'mysql', 'mongodb', 'redis') THEN 'Database'
-                    WHEN tech_item IN ('aws', 'gcp', 'azure', 'docker', 'kubernetes') THEN 'Cloud/DevOps'
-                    ELSE 'Other'
-                END as category
-            FROM (
-                SELECT UNNEST(techstacks) as tech_item
-                FROM silver_jobs
-                WHERE techstacks IS NOT NULL AND len(techstacks) > 0
+            WITH dim AS (
+                SELECT DISTINCT
+                    MD5(tech_item) as id,
+                    tech_item as tech_name,
+                    CASE
+                        WHEN tech_item IN ('python', 'java', 'javascript', 'typescript', 'go', 'rust', 'c++') THEN 'Programming Language'
+                        WHEN tech_item IN ('react', 'vue', 'angular', 'nextjs') THEN 'Frontend Framework'
+                        WHEN tech_item IN ('django', 'flask', 'spring', 'express') THEN 'Backend Framework'
+                        WHEN tech_item IN ('postgresql', 'mysql', 'mongodb', 'redis') THEN 'Database'
+                        WHEN tech_item IN ('aws', 'gcp', 'azure', 'docker', 'kubernetes') THEN 'Cloud/DevOps'
+                        ELSE 'Other'
+                    END as category
+                FROM (
+                    SELECT UNNEST(techstacks) as tech_item
+                    FROM silver_jobs
+                    WHERE techstacks IS NOT NULL AND len(techstacks) > 0
+                )
             )
+            SELECT * FROM dim
+            UNION ALL
+            SELECT MD5('Unknown') as id, 'Unknown' as tech_name, 'Other' as category
         """
         return client.fetch_arrow_table(query)
 
