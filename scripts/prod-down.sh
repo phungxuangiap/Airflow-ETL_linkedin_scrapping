@@ -27,14 +27,14 @@ compose_cmd() {
 
 # Stop Airflow first
 echo "Stopping Airflow services..."
-compose_cmd -f docker/airflow/docker-compose.yml down
+compose_cmd -f docker/airflow/docker-compose.yml down -v --remove-orphans
 
 # Stop Trino before backing services
 echo "Stopping Trino service..."
-compose_cmd -f trino/docker-compose.yml down
+compose_cmd -f trino/docker-compose.yml down -v --remove-orphans
 
 # Stop infrastructure
 echo "Stopping infrastructure services..."
-compose_cmd -f docker/infrastructure/docker-compose.yml down
+compose_cmd -f docker/infrastructure/docker-compose.yml down -v --remove-orphans
 
-echo "✅ Services stopped successfully!"
+echo "✅ Services stopped and volumes removed successfully!"
