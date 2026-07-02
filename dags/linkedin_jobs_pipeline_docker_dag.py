@@ -2,6 +2,7 @@
 LinkedIn Jobs ETL Pipeline - Docker Operator Version
 Separates ETL execution from Airflow to avoid dependency conflicts
 """
+import os
 from datetime import datetime, timedelta
 from airflow import DAG
 from airflow.providers.docker.operators.docker import DockerOperator
@@ -42,6 +43,16 @@ docker_config = {
         'ICEBERG_CATALOG_URI': 'postgresql://iceberg:iceberg123@postgres-iceberg:5432/iceberg_catalog',
         'ICEBERG_CATALOG_NAME': 'lakehouse',
         'ICEBERG_WAREHOUSE_PATH': 's3://airflow-bucket/warehouse',
+
+        # AI Selector Configuration
+        'GROQ_API_KEY': os.getenv('GROQ_API_KEY', ''),
+        'GROQ_MODEL': os.getenv('GROQ_MODEL', 'qwen/qwen3-32b'),
+
+        # Crawler Configuration
+        'CRAWLER_REQUEST_DELAY_MIN_SECONDS': os.getenv('CRAWLER_REQUEST_DELAY_MIN_SECONDS', '2'),
+        'CRAWLER_REQUEST_DELAY_MAX_SECONDS': os.getenv('CRAWLER_REQUEST_DELAY_MAX_SECONDS', '7'),
+        'CRAWLER_PROXY_SWITCH_INTERVAL': os.getenv('CRAWLER_PROXY_SWITCH_INTERVAL', '100'),
+        'CRAWLER_PROXIES': os.getenv('CRAWLER_PROXIES', ''),
 
         # Paths
         'BUCKET': 'airflow-bucket',

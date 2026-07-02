@@ -29,6 +29,8 @@ mkdir -p plugins
 # Ensure correct permissions
 chmod -R 777 tmp/ logs/ 2>/dev/null || true
 
+DEPLOY_GROQ_API_KEY="${GROQ_API_KEY:-}"
+
 # Load production environment variables
 if [ -f .env.prod ]; then
     while IFS= read -r line || [ -n "$line" ]; do
@@ -47,6 +49,39 @@ else
     echo "❌ .env.prod not found"
     exit 1
 fi
+
+if { [ -z "${GROQ_API_KEY:-}" ] || [ "$GROQ_API_KEY" = "CHANGE_ME" ]; } && [ -n "$DEPLOY_GROQ_API_KEY" ]; then
+    GROQ_API_KEY="$DEPLOY_GROQ_API_KEY"
+fi
+
+if [ -n "${GROQ_API_KEY:-}" ] && [ "$GROQ_API_KEY" != "CHANGE_ME" ]; then
+    export GROQ_API_KEY
+    echo "✅ Loaded GROQ_API_KEY from deployment environment"
+elif [ -z "${GROQ_API_KEY:-}" ] || [ "$GROQ_API_KEY" = "CHANGE_ME" ]; then
+    echo "⚠️  GROQ_API_KEY is not configured. Set GitHub Actions secret GROQ_API_KEY or update .env.prod"
+fi
+
+cp .env.prod .env
+if grep -q '^GROQ_API_KEY=' .env; then
+    python3 - <<'PY'
+import os
+from pathlib import Path
+
+env_path = Path(".env")
+groq_api_key = os.environ.get("GROQ_API_KEY", "")
+lines = env_path.read_text(encoding="utf-8").splitlines()
+updated = []
+for line in lines:
+    if line.startswith("GROQ_API_KEY="):
+        updated.append(f"GROQ_API_KEY={groq_api_key}")
+    else:
+        updated.append(line)
+env_path.write_text("\n".join(updated) + "\n", encoding="utf-8")
+PY
+else
+    printf '\nGROQ_API_KEY=%s\n' "$GROQ_API_KEY" >> .env
+fi
+echo "✅ Wrote runtime .env from .env.prod"
 
 # Ensure Docker is installed and running
 if ! command -v docker >/dev/null 2>&1; then
