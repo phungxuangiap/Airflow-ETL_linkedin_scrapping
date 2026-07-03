@@ -49,4 +49,4 @@ docker compose -f docker/infrastructure/docker-compose.superset.yml run --rm sup
 echo "🚀 Starting Superset webserver..."
 docker compose -f docker/infrastructure/docker-compose.superset.yml up -d superset
 
-echo "✅ Superset reset completed. Open http://localhost:8088"
+echo "✅ Superset reset completed. Open http://localhost:8089"

@@ -8,6 +8,7 @@ PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 cd "$PROJECT_ROOT"
 
 DOCKER="${DOCKER:-sudo docker}"
+SUPERSET_HOST_PORT="${SUPERSET_HOST_PORT:-8089}"
 
 echo "🔍 Running health checks..."
 
@@ -61,7 +62,7 @@ echo ""
 echo -e "${YELLOW}=== Superset Services ===${NC}"
 
 # Check Superset Webserver
-check_service "Superset Webserver" "http://localhost:8088/health"
+check_service "Superset Webserver" "http://localhost:${SUPERSET_HOST_PORT}/health"
 
 echo ""
 echo -e "${YELLOW}=== Airflow Services ===${NC}"
