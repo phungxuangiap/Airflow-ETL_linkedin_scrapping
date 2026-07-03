@@ -8,7 +8,10 @@ superset fab create-admin \
   --firstname "${SUPERSET_ADMIN_FIRSTNAME:-Superset}" \
   --lastname "${SUPERSET_ADMIN_LASTNAME:-Admin}" \
   --email "${SUPERSET_ADMIN_EMAIL:-admin@example.com}" \
-  --password "${SUPERSET_ADMIN_PASSWORD:-admin}" || true
+  --password "${SUPERSET_ADMIN_PASSWORD:-admin}" || \
+superset fab reset-password \
+  --username "${SUPERSET_ADMIN_USERNAME:-admin}" \
+  --password "${SUPERSET_ADMIN_PASSWORD:-admin}"
 
 superset init
 
