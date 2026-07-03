@@ -30,7 +30,7 @@ default_args = {
     'email_on_retry': False,
     'retries': 2,
     'retry_delay': timedelta(minutes=5),
-    'execution_timeout': timedelta(minutes=59),
+    'execution_timeout': timedelta(minutes=360),
 }
 
 # Shared Docker configuration
