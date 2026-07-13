@@ -11,109 +11,39 @@ from src.models.schema import SILVER_JOBS_SCHEMA, SILVER_COMPANIES_SCHEMA
 logger = get_logger(__name__)
 
 
-def clean_api_source_jobs(load_date: str = None) -> Dict[str, pa.Table]:
-    if load_date is None:
-        load_date = datetime.now().strftime("%Y-%m-%d")
+def _build_keyword_list_filter_sql(keyword_list, text_expression: str) -> str:
+    """
+    Build a DuckDB list_filter expression that matches canonical keywords against text.
 
-    logger.info(f"Cleaning API source jobs for load_date={load_date}")
-
-    with DuckDBClient() as client:
-        bronze_path = f"{BRONZE_API_DATA_PATH}/load_date={load_date}/*.jsonl"
-
-        # Clean jobs data
-        jobs_query = f"""
-            SELECT
-                COALESCE(title, 'Unknown') as title,
-                COALESCE(
-                    NULLIF(
-                        REGEXP_REPLACE(
-                            LOWER(TRIM(organization)),
-                            '\\s*(,?\\s*(inc|co|ltd|llc|corp|tnhh|cổ phần|group|joint stock|ltd\\.?|co\\.?))\\s*$',
-                            '',
-                            'g'
-                        ),
-                        ''
-                    ),
-                    'Unknown'
-                ) AS company_id,
-                COALESCE(source, 'Unknown') as source_name,
-                CASE
-                    WHEN remote_derived = true THEN 'REMOTE'
-                    WHEN location_type IS NOT NULL THEN UPPER(location_type)
-                    ELSE 'N/A'
-                END as location_type,
-                COALESCE(employment_type[1], 'Unknown') as employment_type,
-                COALESCE(date_posted, 'Unknown') as date_posted,
+    The matcher keeps the original keyword as the output value while matching both:
+    - boundary-aware regex form, allowing separators between multi-word terms
+    - compact form, removing separators to catch variants like front-end/frontend or node.js/nodejs
+    """
+    return f"""
                 list_filter(
-                    {TECH_LIST},
-                    x -> regexp_matches(lower(COALESCE(title, '') || ' ' || COALESCE(organization, '')), '\\b' || x || '\\b')
-                ) as techstacks,
-                COALESCE(url, 'Unknown') as job_url,
-                COALESCE(CAST(salary_raw AS VARCHAR), 'Unknown') as salary,
-                COALESCE(seniority, 'Unknown') as level,
-                list_filter(
-                    {ROLE_LIST},
-                    x -> regexp_matches(lower(title), '\\b' || x || '\\b')
-                ) as role,
-                COALESCE(CAST(0 AS INTEGER), 0) as number_applicants,
-                CURRENT_TIMESTAMP as processed_at
-            FROM (
-                SELECT
-                    CAST(title AS VARCHAR) AS title,
-                    CAST(organization AS VARCHAR) AS organization,
-                    CAST(source AS VARCHAR) AS source,
-                    CAST(location_type AS VARCHAR) AS location_type,
-                    employment_type,
-                    CAST(date_posted AS VARCHAR) AS date_posted,
-                    CAST(url AS VARCHAR) AS url,
-                    CAST(salary_raw AS VARCHAR) AS salary_raw,
-                    CAST(seniority AS VARCHAR) AS seniority,
-                    TRY_CAST(remote_derived AS BOOLEAN) AS remote_derived
-                FROM read_json_auto('{bronze_path}', ignore_errors=true, format='newline_delimited')
-            ) raw_jobs
-        """
+                    {keyword_list},
+                    x ->
+                        regexp_matches(
+                            lower(COALESCE({text_expression}, '')),
+                            '(^|[^[:alnum:]_])' ||
+                            regexp_replace(x, '\\\\s+', '[\\\\s._/+:-]+', 'g') ||
+                            '([^[:alnum:]_]|$)'
+                        )
+                        OR (
+                            length(regexp_replace(x, '[^[:alnum:]#+]+', '', 'g')) > 4
+                            AND strpos(
+                                regexp_replace(lower(COALESCE({text_expression}, '')), '[^[:alnum:]#+]+', '', 'g'),
+                                regexp_replace(x, '[^[:alnum:]#+]+', '', 'g')
+                            ) > 0
+                        )
+                )
+    """
 
-        jobs_table = client.fetch_arrow_table(jobs_query)
-        logger.info(f"Cleaned {jobs_table.num_rows} API jobs")
 
-        # Clean companies data
-        companies_query = f"""
-            SELECT DISTINCT
-                COALESCE(
-                    NULLIF(
-                        REGEXP_REPLACE(
-                            LOWER(TRIM(organization)),
-                            '\\s*(,?\\s*(inc|co|ltd|llc|corp|tnhh|cổ phần|group|joint stock|ltd\\.?|co\\.?))\\s*$',
-                            '',
-                            'g'
-                        ),
-                        ''
-                    ),
-                    'Unknown'
-                ) AS id,
-                COALESCE(organization, 'Unknown') as name,
-                COALESCE(linkedin_org_industry, 'Unknown') as industry,
-                COALESCE(linkedin_org_size, 'Unknown') as company_size,
-                COALESCE(linkedin_org_headquarters, 'Unknown') as location,
-                COALESCE(source, 'Unknown') as source_name
-            FROM (
-                SELECT
-                    CAST(organization AS VARCHAR) AS organization,
-                    CAST(linkedin_org_industry AS VARCHAR) AS linkedin_org_industry,
-                    CAST(linkedin_org_size AS VARCHAR) AS linkedin_org_size,
-                    CAST(linkedin_org_headquarters AS VARCHAR) AS linkedin_org_headquarters,
-                    CAST(source AS VARCHAR) AS source
-                FROM read_json_auto('{bronze_path}', ignore_errors=true, format='newline_delimited')
-            ) raw_companies
-        """
-
-        companies_table = client.fetch_arrow_table(companies_query)
-        logger.info(f"Cleaned {companies_table.num_rows} API companies")
-
-    return {
-        "jobs": jobs_table,
-        "companies": companies_table
-    }
+def _build_first_keyword_match_sql(keyword_list, text_expression: str, default: str = "Unknown") -> str:
+    """Build a DuckDB expression returning the first canonical keyword matched in text."""
+    list_filter_expression = _build_keyword_list_filter_sql(keyword_list, text_expression)
+    return f"COALESCE(NULLIF(({list_filter_expression})[1], ''), '{default}')"
 
 
 def clean_scrapped_source_jobs(load_date: str = None) -> Dict[str, pa.Table]:
@@ -124,9 +54,16 @@ def clean_scrapped_source_jobs(load_date: str = None) -> Dict[str, pa.Table]:
 
     with DuckDBClient() as client:
         bronze_path = f"{BRONZE_CRAWLER_DATA_PATH}/load_date={load_date}/*.jsonl"
+        techstacks_expression = _build_keyword_list_filter_sql("tech_keywords", "description")
+        role_expression = _build_first_keyword_match_sql("role_keywords", "description")
 
         # Clean jobs data
         jobs_query = f"""
+            WITH keyword_lists AS (
+                SELECT
+                    {TECH_LIST} AS tech_keywords,
+                    {ROLE_LIST} AS role_keywords
+            )
             SELECT
                 COALESCE(title, 'Unknown') as title,
                 COALESCE(
@@ -145,17 +82,11 @@ def clean_scrapped_source_jobs(load_date: str = None) -> Dict[str, pa.Table]:
                 COALESCE(UPPER(location_working_type), 'N/A') as location_type,
                 COALESCE(working_type, 'Unknown') as employment_type,
                 COALESCE(date_posted, 'Unknown') as date_posted,
-                list_filter(
-                    {TECH_LIST},
-                    x -> regexp_matches(lower(COALESCE(description, '')), '\\b' || x || '\\b')
-                ) as techstacks,
+                {techstacks_expression} as techstacks,
                 COALESCE(job_url, 'Unknown') as job_url,
                 COALESCE(salary, 'Unknown') as salary,
                 COALESCE(level, 'Unknown') as level,
-                list_filter(
-                    {ROLE_LIST},
-                    x -> regexp_matches(lower(COALESCE(role, '')), '\\b' || x || '\\b')
-                ) as role,
+                {role_expression} as role,
                 COALESCE(TRY_CAST(number_applicants AS INTEGER), 0) as number_applicants,
                 CURRENT_TIMESTAMP as processed_at
             FROM (
@@ -169,10 +100,10 @@ def clean_scrapped_source_jobs(load_date: str = None) -> Dict[str, pa.Table]:
                     CAST(job_url AS VARCHAR) AS job_url,
                     CAST(salary AS VARCHAR) AS salary,
                     CAST(level AS VARCHAR) AS level,
-                    CAST(role AS VARCHAR) AS role,
                     CAST(number_applicants AS VARCHAR) AS number_applicants
                 FROM read_json_auto('{bronze_path}', ignore_errors=true, format='newline_delimited')
             ) raw_jobs
+            CROSS JOIN keyword_lists
         """
 
         jobs_table = client.fetch_arrow_table(jobs_query)

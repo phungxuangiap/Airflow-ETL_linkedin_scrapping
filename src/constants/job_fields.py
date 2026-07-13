@@ -77,10 +77,36 @@ TECH_LIST = [
 
 # Role list
 ROLE_LIST = [
-    'software', 'data', 'devops', 'qa', 'security', 'mobile', 'game', 'embedded', 'cloud',
-    'fullstack', 'frontend', 'backend', 'ai', 'ml', 'nlp', 'computer vision', 'analytics',
-    'business intelligence', 'database', 'infrastructure', 'network', 'support',
-    'business analyst', 'product manager', 'project manager', 'designer', 'product owner'
+    'software engineer', 'software developer', 'web developer', 'fullstack developer',
+    'frontend developer', 'backend developer', 'software', 'fullstack', 'frontend', 'backend',
+
+    'android developer', 'ios developer', 'flutter developer', 'react native developer',
+    'mobile developer', 'mobile',
+
+    'game developer', 'embedded software engineer', 'firmware engineer', 'game', 'embedded',
+
+    'big data engineer', 'data engineer', 'data analyst', 'data scientist',
+    'analytics engineer', 'business intelligence', 'bi developer', 'etl developer',
+    'database administrator', 'database developer', 'machine learning engineer',
+    'deep learning engineer', 'computer vision engineer', 'nlp engineer', 'ai engineer',
+    'data', 'analytics', 'database', 'computer vision', 'nlp', 'ai', 'ml',
+
+    'site reliability engineer', 'devops engineer', 'platform engineer', 'cloud architect',
+    'cloud engineer', 'solutions architect', 'infrastructure engineer', 'system administrator',
+    'linux administrator', 'network engineer', 'devops', 'sre', 'cloud', 'infrastructure', 'network',
+
+    'quality assurance engineer', 'automation tester', 'manual tester', 'performance tester',
+    'test engineer', 'qa engineer', 'qa',
+
+    'cybersecurity analyst', 'information security analyst', 'penetration tester',
+    'security engineer', 'soc analyst', 'security',
+
+    'technical support engineer', 'helpdesk technician', 'it support', 'support',
+    'business analyst', 'system analyst', 'product manager', 'product owner', 'project manager',
+    'scrum master', 'ui ux designer', 'designer',
+
+    'technical lead', 'engineering manager', 'it manager', 'erp consultant', 'sap consultant',
+    'salesforce developer', 'blockchain developer'
 ]
 
 # Employment types

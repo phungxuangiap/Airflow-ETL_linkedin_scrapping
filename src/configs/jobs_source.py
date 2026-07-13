@@ -100,13 +100,13 @@ def _build_jobs_source():
                     "entry_point": ".job-item",
                     "detail_entry_point": ".job-detail-page",
                 },
-                {
-                    "source_name": "joboko",
-                    "role": role,
-                    "url": f"https://vn.joboko.com/jobs?q={role_query}&pr=1",
-                    "entry_point": ".nw-job-list__list > .item",
-                    "detail_entry_point": ".nw-job-list__main.nw-wysiwyg",
-                },
+                # {
+                #     "source_name": "joboko",
+                #     "role": role,
+                #     "url": f"https://vn.joboko.com/jobs?q={role_query}&pr=1",
+                #     "entry_point": ".nw-job-list__list > .item",
+                #     "detail_entry_point": ".nw-job-list__main.nw-wysiwyg",
+                # },
                 # {
                 #     "source_name": "careerlink",
                 #     "role": role,
@@ -114,13 +114,13 @@ def _build_jobs_source():
                 #     "entry_point": ".list-group-item.job-item",
                 #     "detail_entry_point": ".job-detail",
                 # },
-                {
-                    "source_name": "topdev",
-                    "role": role,
-                    "url": f"https://topdev.vn/viec-lam/tim-kiem?keyword={role_query}",
-                    "entry_point": 'div.text-card-foreground:has(> div.relative img[alt="job-image"]):has(a[href^="/viec-lam/"])',
-                    "detail_entry_point": 'div:has(span:-soup-contains("Your role & responsibilities")):has(span:-soup-contains("Your skills & qualifications")):has(span:-soup-contains("Benefits"))',
-                },
+                # {
+                #     "source_name": "topdev",
+                #     "role": role,
+                #     "url": f"https://topdev.vn/viec-lam/tim-kiem?keyword={role_query}",
+                #     "entry_point": 'div.text-card-foreground:has(> div.relative img[alt="job-image"]):has(a[href^="/viec-lam/"])',
+                #     "detail_entry_point": 'div:has(span:-soup-contains("Your role & responsibilities")):has(span:-soup-contains("Your skills & qualifications")):has(span:-soup-contains("Benefits"))',
+                # },
             ]
         )
     return sources

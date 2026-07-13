@@ -150,13 +150,10 @@ def build_dim_role() -> pa.Table:
         query = """
             WITH dim AS (
                 SELECT DISTINCT
-                    MD5(role_item) as id,
-                    role_item as role_name
-                FROM (
-                    SELECT UNNEST(role) as role_item
-                    FROM silver_jobs
-                    WHERE role IS NOT NULL AND len(role) > 0
-                )
+                    MD5(role) as id,
+                    role as role_name
+                FROM silver_jobs
+                WHERE role IS NOT NULL AND role != '' AND role != 'Unknown'
             )
             SELECT * FROM dim
             UNION ALL

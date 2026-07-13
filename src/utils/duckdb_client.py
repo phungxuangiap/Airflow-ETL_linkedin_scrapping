@@ -24,6 +24,28 @@ class DuckDBClient:
         self.database = database
         self.connection: Optional[duckdb.DuckDBPyConnection] = None
 
+    def _load_extension(self, extension_name: str, required: bool = True) -> None:
+        """Load a DuckDB extension, installing only when it is not already available."""
+        if self.connection is None:
+            raise RuntimeError("DuckDB connection is not initialized")
+
+        try:
+            self.connection.execute(f"LOAD {extension_name};")
+            logger.info("Loaded DuckDB extension: %s", extension_name)
+            return
+        except duckdb.Error as load_error:
+            logger.info("DuckDB extension %s is not loaded yet: %s", extension_name, load_error)
+
+        try:
+            self.connection.execute(f"INSTALL {extension_name};")
+            self.connection.execute(f"LOAD {extension_name};")
+            logger.info("Installed and loaded DuckDB extension: %s", extension_name)
+        except duckdb.Error as install_error:
+            if required:
+                logger.error("Cannot install/load required DuckDB extension %s: %s", extension_name, install_error)
+                raise
+            logger.warning("Skip optional DuckDB extension %s: %s", extension_name, install_error)
+
     def connect(self) -> duckdb.DuckDBPyConnection:
         """
         Create and configure DuckDB connection
@@ -40,10 +62,10 @@ class DuckDBClient:
             self.connection.execute(f"SET threads = {duckdb_config.THREADS}")
             self.connection.execute(f"SET temp_directory = '{duckdb_config.TEMP_DIR}'")
 
-            # Install and load extensions
-            self.connection.execute("INSTALL httpfs; LOAD httpfs;")
-            self.connection.execute("INSTALL json; LOAD json;")
-            self.connection.execute("INSTALL iceberg; LOAD iceberg;")
+            # Load bundled extensions first to avoid network installs in offline containers.
+            self._load_extension("httpfs")
+            self._load_extension("json", required=False)
+            self._load_extension("iceberg")
 
             # Configure S3 settings
             s3_config = duckdb_config.get_s3_config()

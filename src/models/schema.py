@@ -57,7 +57,7 @@ SILVER_JOBS_SCHEMA = pa.schema([
     pa.field("job_url", pa.string()),
     pa.field("salary", pa.string()),
     pa.field("level", pa.string()),
-    pa.field("role", pa.list_(pa.string())),
+    pa.field("role", pa.string()),
     pa.field("number_applicants", pa.int32()),
     pa.field("processed_at", pa.timestamp('us')),
 ])
