@@ -16,7 +16,7 @@ class MinIOConfig:
     PATH_STYLE = os.getenv("S3_PATH_STYLE", "true").lower() == "true"
 
     # Bucket configuration
-    BUCKET_NAME = os.getenv("BUCKET", "airflow-bucket")
+    BUCKET_NAME = os.getenv("BUCKET", "linkedin-jobs-prod")
 
     # Layer paths
     BRONZE_PATH = f"bronze/"

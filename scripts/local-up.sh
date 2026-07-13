@@ -61,6 +61,7 @@ docker compose -f docker/infrastructure/docker-compose.superset.yml up -d supers
 
 # Start Airflow
 echo "🐳 Starting Airflow services..."
+docker compose -f docker/airflow/docker-compose.yml build
 docker compose -f docker/airflow/docker-compose.yml up -d
 
 echo "⏳ Waiting for Airflow to be ready..."

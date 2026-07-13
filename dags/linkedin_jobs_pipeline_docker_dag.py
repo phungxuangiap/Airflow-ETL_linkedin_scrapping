@@ -7,7 +7,7 @@ from datetime import datetime, timedelta
 from airflow import DAG
 from airflow.providers.docker.operators.docker import DockerOperator
 
-BUCKET = os.getenv('BUCKET', 'airflow-bucket')
+BUCKET = os.getenv('BUCKET', 'linkedin-jobs-prod')
 S3_ENDPOINT = os.getenv('S3_ENDPOINT', 'http://minio:9000')
 S3_ACCESS_KEY = os.getenv('S3_ACCESS_KEY', 'minioadmin')
 S3_SECRET_KEY = os.getenv('S3_SECRET_KEY', 'minioadmin')
@@ -62,8 +62,13 @@ docker_config = {
         'ICEBERG_WAREHOUSE_PATH': ICEBERG_WAREHOUSE_PATH,
 
         # AI Selector Configuration
-        'GROQ_API_KEY': os.getenv('GROQ_API_KEY', ''),
-        'GROQ_MODEL': os.getenv('GROQ_MODEL', 'qwen/qwen3-32b'),
+        'DEEPSEEK_API_KEY': os.getenv('DEEPSEEK_API_KEY', ''),
+        'DEEPSEEK_API_URL': os.getenv('DEEPSEEK_API_URL', 'https://api.deepseek.com/chat/completions'),
+        'DEEPSEEK_MODEL': os.getenv('DEEPSEEK_MODEL', 'deepseek-v4-pro'),
+        'AI_REQUEST_TIMEOUT_SECONDS': os.getenv('AI_REQUEST_TIMEOUT_SECONDS', '90'),
+        'AI_REQUEST_MAX_ATTEMPTS': os.getenv('AI_REQUEST_MAX_ATTEMPTS', '3'),
+        'AI_REQUEST_RETRY_DELAY_SECONDS': os.getenv('AI_REQUEST_RETRY_DELAY_SECONDS', '5'),
+        'SOURCE_CONFIG_OBJECT_KEY': os.getenv('SOURCE_CONFIG_OBJECT_KEY', 'configs/ingestion/source_config.json'),
 
         # Crawler Configuration
         'CRAWLER_REQUEST_DELAY_MIN_SECONDS': os.getenv('CRAWLER_REQUEST_DELAY_MIN_SECONDS', '2'),

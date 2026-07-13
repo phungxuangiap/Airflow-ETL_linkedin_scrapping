@@ -96,11 +96,11 @@ Bronze được chia thành hai phase:
 Ví dụ path trên MinIO:
 
 ```text
-s3://airflow-bucket/staging/bronze/api_data/jobs/load_date=YYYY-MM-DD/*.jsonl
-s3://airflow-bucket/staging/bronze/crawler_data/linkedin/jobs/load_date=YYYY-MM-DD/*.jsonl
+s3://linkedin-jobs-prod/staging/bronze/api_data/jobs/load_date=YYYY-MM-DD/*.jsonl
+s3://linkedin-jobs-prod/staging/bronze/crawler_data/linkedin/jobs/load_date=YYYY-MM-DD/*.jsonl
 
-s3://airflow-bucket/bronze/api_data/jobs/load_date=YYYY-MM-DD/*.jsonl
-s3://airflow-bucket/bronze/crawler_data/linkedin/jobs/load_date=YYYY-MM-DD/*.jsonl
+s3://linkedin-jobs-prod/bronze/api_data/jobs/load_date=YYYY-MM-DD/*.jsonl
+s3://linkedin-jobs-prod/bronze/crawler_data/linkedin/jobs/load_date=YYYY-MM-DD/*.jsonl
 ```
 
 Ý nghĩa Data Engineering:
@@ -304,11 +304,11 @@ MinIO đóng vai trò object storage tương thích S3.
 Các bucket được khởi tạo bởi `minio-init`:
 
 ```text
-airflow-bucket
+linkedin-jobs-prod
 iceberg-warehouse
 ```
 
-`airflow-bucket` lưu dữ liệu pipeline như Bronze, Silver, Gold hoặc warehouse path tùy cấu hình runtime.
+`linkedin-jobs-prod` lưu dữ liệu pipeline như Bronze, Silver, Gold hoặc warehouse path tùy cấu hình runtime.
 
 `iceberg-warehouse` được dùng bởi Trino catalog config làm default warehouse dir.
 
@@ -330,7 +330,7 @@ Trong ETL runtime, catalog được cấu hình qua environment variables như:
 ICEBERG_CATALOG_TYPE=sql
 ICEBERG_CATALOG_URI=postgresql://iceberg:iceberg123@postgres-iceberg:5432/iceberg_catalog
 ICEBERG_CATALOG_NAME=lakehouse
-ICEBERG_WAREHOUSE_PATH=s3://airflow-bucket/warehouse
+ICEBERG_WAREHOUSE_PATH=s3://linkedin-jobs-prod/warehouse
 ```
 
 Trong Trino, catalog `iceberg` được cấu hình tại:
@@ -498,7 +498,7 @@ AIRFLOW_UID=50000
 S3_ENDPOINT=http://minio:9000
 S3_ACCESS_KEY=minioadmin
 S3_SECRET_KEY=minioadmin
-BUCKET=airflow-bucket
+BUCKET=linkedin-jobs-prod
 ICEBERG_CATALOG_NAME=lakehouse
 ```
 

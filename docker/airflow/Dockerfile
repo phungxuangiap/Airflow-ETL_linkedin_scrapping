@@ -8,7 +8,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 USER airflow
 
-# ETL dependencies are now in linkedin-etl container (requirements-etl.txt)
-# Airflow only needs base image + docker provider (already included)
+# Minimal dependencies for lightweight ingestion test DAGs that run in Airflow.
+# Full ETL dependencies remain in the linkedin-etl container.
+RUN pip install --no-cache-dir \
+    minio==7.2.0 \
+    requests==2.31.0 \
+    beautifulsoup4==4.12.3
 
 WORKDIR /opt/airflow

@@ -13,7 +13,7 @@ class IcebergConfig:
     CATALOG_NAME = os.getenv("ICEBERG_CATALOG_NAME", "lakehouse")
 
     # S3/MinIO settings
-    BUCKET = os.getenv("BUCKET", "airflow-bucket")
+    BUCKET = os.getenv("BUCKET", "linkedin-jobs-prod")
     S3_ENDPOINT = os.getenv("S3_ENDPOINT", "http://minio:9000")
     S3_ACCESS_KEY = os.getenv("S3_ACCESS_KEY", "minioadmin")
     S3_SECRET_KEY = os.getenv("S3_SECRET_KEY", "minioadmin")

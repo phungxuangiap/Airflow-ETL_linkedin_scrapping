@@ -52,7 +52,7 @@ services:
       /bin/sh -c "
       sleep 5;
       mc alias set myminio http://minio:9000 minioadmin minioadmin;
-      mc mb myminio/airflow-bucket --ignore-existing;
+      mc mb myminio/linkedin-jobs-prod --ignore-existing;
       mc mb myminio/iceberg-warehouse --ignore-existing;
       echo 'MinIO buckets initialized';
       "

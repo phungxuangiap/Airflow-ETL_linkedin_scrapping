@@ -21,12 +21,12 @@ x-airflow-common:
     AWS_ENDPOINT_URL: http://minio:9000
     AWS_ACCESS_KEY_ID: minioadmin
     AWS_SECRET_ACCESS_KEY: minioadmin
-    AWS_S3_BUCKET: airflow-bucket
+    AWS_S3_BUCKET: linkedin-jobs-prod
     AWS_REGION: us-east-1
 
     # Iceberg Configuration
     ICEBERG_CATALOG_URI: postgresql://iceberg:iceberg123@postgres-iceberg:5432/iceberg_catalog
-    ICEBERG_WAREHOUSE_PATH: s3://iceberg-warehouse
+    ICEBERG_WAREHOUSE_PATH: s3://linkedin-jobs-prod/warehouse
 
     # Python path
     PYTHONPATH: /opt/airflow

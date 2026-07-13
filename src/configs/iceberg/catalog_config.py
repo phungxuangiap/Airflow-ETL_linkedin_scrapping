@@ -5,7 +5,7 @@ from pyiceberg.catalog import load_catalog
 CATALOG_DB_PATH = os.path.abspath("linkedin_catalog.db")
 
 # S3/MinIO Configuration from environment variables
-bucket = os.getenv("AWS_S3_BUCKET", "airflow-bucket")
+bucket = os.getenv("AWS_S3_BUCKET", "linkedin-jobs-prod")
 s3_endpoint = os.getenv("AWS_ENDPOINT_URL", "http://minio:9000")
 s3_access_key = os.getenv("AWS_ACCESS_KEY_ID", "minioadmin")
 s3_secret_key = os.getenv("AWS_SECRET_ACCESS_KEY", "minioadmin")

@@ -4,7 +4,7 @@ Path constants for the ETL pipeline
 import os
 
 # S3/MinIO bucket
-BUCKET = os.getenv("BUCKET", "airflow-bucket")
+BUCKET = os.getenv("BUCKET", "linkedin-jobs-prod")
 
 # Bronze layer paths
 BRONZE_API_DATA_PATH = f"s3://{BUCKET}/bronze/api_data/jobs"
