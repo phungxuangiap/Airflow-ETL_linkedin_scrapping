@@ -132,6 +132,33 @@ class IcebergClient:
             logger.error(f"Failed to create table {identifier}: {e}")
             raise
 
+    def drop_table(self, identifier: str) -> bool:
+        """
+        Drop a table from the Iceberg catalog if it exists.
+
+        This removes the catalog entry. It is primarily used for disposable
+        staging tables that may be left stale after local cleanup removes
+        their metadata files.
+        """
+        try:
+            self.catalog.drop_table(identifier)
+            logger.info(f"Dropped table: {identifier}")
+            return True
+        except Exception as e:
+            logger.warning(f"Table {identifier} could not be dropped or does not exist: {e}")
+            return False
+
+    def recreate_table(
+        self,
+        identifier: str,
+        schema: pa.Schema,
+        partition_spec: Optional[PartitionSpec] = None,
+        properties: Optional[Dict[str, str]] = None
+    ) -> Table:
+        """Drop and recreate a table with the provided schema."""
+        self.drop_table(identifier)
+        return self.create_table(identifier, schema, partition_spec, properties)
+
     def append_data(self, identifier: str, data: pa.Table) -> int:
         """
         Append data to an Iceberg table
@@ -201,7 +228,15 @@ class IcebergClient:
         """
         table = self.load_table(identifier)
         if table is None:
-            table = self.create_table(identifier, schema, partition_spec, properties)
+            try:
+                table = self.create_table(identifier, schema, partition_spec, properties)
+            except Exception as e:
+                logger.warning(
+                    f"Create table failed after load miss for {identifier}; trying to load existing table once: {e}"
+                )
+                table = self.load_table(identifier)
+                if table is None:
+                    raise
         return table
 
     def upsert_data(self, identifier: str, data: pa.Table, unique_key: str) -> int:

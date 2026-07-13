@@ -26,7 +26,19 @@ def overwrite_staging_table(table_name: str, data: pa.Table, allow_empty: bool =
         raise ValueError(f"Refusing to stage empty table for {table_name}")
 
     client = get_iceberg_client()
-    client.get_or_create_table(table_name, schema=data.schema)
+    try:
+        client.get_or_create_table(table_name, schema=data.schema)
+    except Exception as exc:
+        if not table_name.startswith("staging."):
+            raise
+
+        logger.warning(
+            "Recreating stale staging table %s after get/create failed: %s",
+            table_name,
+            exc,
+        )
+        client.recreate_table(table_name, schema=data.schema)
+
     rows_loaded = client.overwrite_data(table_name, data)
 
     logger.info(f"Staged {rows_loaded} rows to {table_name}")

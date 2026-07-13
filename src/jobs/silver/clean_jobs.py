@@ -4,46 +4,29 @@ import pyarrow as pa
 
 from src.utils.logger import get_logger
 from src.utils.duckdb_client import DuckDBClient
-from src.constants.job_fields import TECH_LIST, ROLE_LIST
+from src.constants.job_fields import (
+    TECH_LIST,
+    ROLE_LIST,
+    EMPLOYMENT_TYPES,
+    LOCATION_TYPES,
+    SENIORITY_LEVELS,
+)
 from src.constants.paths import BRONZE_API_DATA_PATH, BRONZE_CRAWLER_DATA_PATH
 from src.models.schema import SILVER_JOBS_SCHEMA, SILVER_COMPANIES_SCHEMA
+from src.jobs.silver.job_field_expressions import (
+    build_canonical_field_fallback_sql,
+    build_employment_type_match_sql,
+    build_experience_year_level_match_sql,
+    build_first_keyword_match_sql,
+    build_keyword_list_filter_sql,
+    build_location_type_match_sql,
+    build_salary_match_sql,
+    build_seniority_level_match_sql,
+    build_text_field_fallback_sql,
+    build_unknown_fallback_sql,
+)
 
 logger = get_logger(__name__)
-
-
-def _build_keyword_list_filter_sql(keyword_list, text_expression: str) -> str:
-    """
-    Build a DuckDB list_filter expression that matches canonical keywords against text.
-
-    The matcher keeps the original keyword as the output value while matching both:
-    - boundary-aware regex form, allowing separators between multi-word terms
-    - compact form, removing separators to catch variants like front-end/frontend or node.js/nodejs
-    """
-    return f"""
-                list_filter(
-                    {keyword_list},
-                    x ->
-                        regexp_matches(
-                            lower(COALESCE({text_expression}, '')),
-                            '(^|[^[:alnum:]_])' ||
-                            regexp_replace(x, '\\\\s+', '[\\\\s._/+:-]+', 'g') ||
-                            '([^[:alnum:]_]|$)'
-                        )
-                        OR (
-                            length(regexp_replace(x, '[^[:alnum:]#+]+', '', 'g')) > 4
-                            AND strpos(
-                                regexp_replace(lower(COALESCE({text_expression}, '')), '[^[:alnum:]#+]+', '', 'g'),
-                                regexp_replace(x, '[^[:alnum:]#+]+', '', 'g')
-                            ) > 0
-                        )
-                )
-    """
-
-
-def _build_first_keyword_match_sql(keyword_list, text_expression: str, default: str = "Unknown") -> str:
-    """Build a DuckDB expression returning the first canonical keyword matched in text."""
-    list_filter_expression = _build_keyword_list_filter_sql(keyword_list, text_expression)
-    return f"COALESCE(NULLIF(({list_filter_expression})[1], ''), '{default}')"
 
 
 def clean_scrapped_source_jobs(load_date: str = None) -> Dict[str, pa.Table]:
@@ -54,45 +37,105 @@ def clean_scrapped_source_jobs(load_date: str = None) -> Dict[str, pa.Table]:
 
     with DuckDBClient() as client:
         bronze_path = f"{BRONZE_CRAWLER_DATA_PATH}/load_date={load_date}/*.jsonl"
-        techstacks_expression = _build_keyword_list_filter_sql("tech_keywords", "description")
-        role_expression = _build_first_keyword_match_sql("role_keywords", "description")
+        techstacks_expression = build_keyword_list_filter_sql("tech_keywords", "description")
+        role_expression = build_first_keyword_match_sql("role_keywords", "title")
+        employment_type_fallback_expression = build_employment_type_match_sql(
+            "employment_type_keywords",
+            "description",
+            default="FULL_TIME",
+        )
+        employment_type_expression = build_canonical_field_fallback_sql(
+            "working_type",
+            build_employment_type_match_sql("employment_type_keywords", "working_type", default=""),
+            employment_type_fallback_expression,
+        )
+        location_type_fallback_expression = build_location_type_match_sql(
+            "location_type_keywords",
+            "description",
+            default="ON_SITE",
+        )
+        location_type_expression = build_canonical_field_fallback_sql(
+            "location_working_type",
+            build_location_type_match_sql("location_type_keywords", "location_working_type", default=""),
+            location_type_fallback_expression,
+        )
+        level_keyword_expression = build_seniority_level_match_sql(
+            "seniority_level_keywords",
+            "description",
+        )
+        level_fallback_expression = build_unknown_fallback_sql(
+            level_keyword_expression,
+            build_experience_year_level_match_sql("description"),
+        )
+        level_expression = build_canonical_field_fallback_sql(
+            "level",
+            build_seniority_level_match_sql("seniority_level_keywords", "level", default=""),
+            level_fallback_expression,
+        )
+        salary_expression = build_text_field_fallback_sql(
+            "salary",
+            build_salary_match_sql("description"),
+        )
+        company_id_expression = """
+                MD5(
+                    COALESCE(
+                        NULLIF(
+                            REGEXP_REPLACE(
+                                REGEXP_REPLACE(LOWER(TRIM(company)), '[^[:alnum:]]+', '-', 'g'),
+                                '(^-+|-+$)',
+                                '',
+                                'g'
+                            ),
+                            ''
+                        ),
+                        'unknown'
+                    )
+                )
+        """
+        date_posted_expression = """
+                STRFTIME(
+                    COALESCE(
+                        TRY_CAST(NULLIF(TRIM(date_posted), '') AS DATE),
+                        CAST(TRY_STRPTIME(NULLIF(TRIM(date_posted), ''), '%d-%m-%Y') AS DATE),
+                        CAST(TRY_STRPTIME(NULLIF(TRIM(date_posted), ''), '%d/%m/%Y') AS DATE),
+                        CAST(TRY_STRPTIME(NULLIF(TRIM(date_posted), ''), '%Y-%m-%d') AS DATE),
+                        CAST(TRY_STRPTIME(NULLIF(TRIM(date_posted), ''), '%Y/%m/%d') AS DATE),
+                        CAST(processed_at_value AS DATE)
+                    ),
+                    '%d-%m-%Y'
+                )
+        """
 
         # Clean jobs data
         jobs_query = f"""
             WITH keyword_lists AS (
                 SELECT
                     {TECH_LIST} AS tech_keywords,
-                    {ROLE_LIST} AS role_keywords
+                    {ROLE_LIST} AS role_keywords,
+                    {EMPLOYMENT_TYPES} AS employment_type_keywords,
+                    {LOCATION_TYPES} AS location_type_keywords,
+                    {SENIORITY_LEVELS} AS seniority_level_keywords,
+                    CURRENT_TIMESTAMP AS processed_at_value
             )
             SELECT
                 COALESCE(title, 'Unknown') as title,
-                COALESCE(
-                    NULLIF(
-                        REGEXP_REPLACE(
-                            LOWER(TRIM(company)),
-                            '\\s*(,?\\s*(inc|co|ltd|llc|corp|tnhh|cổ phần|group|joint stock|ltd\\.?|co\\.?))\\s*$',
-                            '',
-                            'g'
-                        ),
-                        ''
-                    ),
-                    'Unknown'
-                ) AS company_id,
-                'linkedin_scraper' as source_name,
-                COALESCE(UPPER(location_working_type), 'N/A') as location_type,
-                COALESCE(working_type, 'Unknown') as employment_type,
-                COALESCE(date_posted, 'Unknown') as date_posted,
+                {company_id_expression} AS company_id,
+                COALESCE(source_name, 'Unknown') as source_name,
+                {location_type_expression} as location_type,
+                {employment_type_expression} as employment_type,
+                {date_posted_expression} as date_posted,
                 {techstacks_expression} as techstacks,
                 COALESCE(job_url, 'Unknown') as job_url,
-                COALESCE(salary, 'Unknown') as salary,
-                COALESCE(level, 'Unknown') as level,
+                {salary_expression} as salary,
+                {level_expression} as level,
                 {role_expression} as role,
                 COALESCE(TRY_CAST(number_applicants AS INTEGER), 0) as number_applicants,
-                CURRENT_TIMESTAMP as processed_at
+                processed_at_value as processed_at
             FROM (
                 SELECT
                     CAST(title AS VARCHAR) AS title,
                     CAST(company AS VARCHAR) AS company,
+                    CAST(source_name AS VARCHAR) AS source_name,
                     CAST(location_working_type AS VARCHAR) AS location_working_type,
                     CAST(working_type AS VARCHAR) AS working_type,
                     CAST(date_posted AS VARCHAR) AS date_posted,
@@ -112,23 +155,12 @@ def clean_scrapped_source_jobs(load_date: str = None) -> Dict[str, pa.Table]:
         # Clean companies data
         companies_query = f"""
             SELECT DISTINCT
-                COALESCE(
-                    NULLIF(
-                        REGEXP_REPLACE(
-                            LOWER(TRIM(company)),
-                            '\\s*(,?\\s*(inc|co|ltd|llc|corp|tnhh|cổ phần|group|joint stock|ltd\\.?|co\\.?))\\s*$',
-                            '',
-                            'g'
-                        ),
-                        ''
-                    ),
-                    'Unknown'
-                ) AS id,
+                {company_id_expression} AS id,
                 COALESCE(company, 'Unknown') as name,
                 'Unknown' as industry,
                 'Unknown' as company_size,
                 COALESCE(company_location, 'Unknown') as location,
-                'linkedin_scraper' as source_name
+                'scraper' as source_name
             FROM (
                 SELECT
                     CAST(company AS VARCHAR) AS company,

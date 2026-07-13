@@ -33,7 +33,7 @@ COMPANY_FIELDS = [
 TECH_LIST = [
     # Programming Languages
     'python', 'java', 'c\\+\\+', 'c#', 'javascript', 'typescript', 'go', 'rust', 'kotlin', 'swift',
-    'php', 'ruby', 'r', 'scala', 'matlab', 'groovy', 'perl',
+    'php', 'ruby', 'scala', 'matlab', 'groovy', 'perl',
 
     # Web Development
     'html', 'css', 'react', 'angular', 'vue', 'svelte', 'nodejs', 'express', 'django', 'flask',
@@ -123,8 +123,7 @@ EMPLOYMENT_TYPES = [
 LOCATION_TYPES = [
     'REMOTE',
     'HYBRID',
-    'ON_SITE',
-    'N/A'
+    'ON_SITE'
 ]
 
 # Seniority levels
