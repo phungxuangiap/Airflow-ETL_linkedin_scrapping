@@ -1,7 +1,7 @@
 from typing import Any, Dict, List, Optional
 
 from src.jobs.ingestion.scrapper.ai_config import generate_source_config_from_ai
-from src.jobs.ingestion.scrapper.http_client import fetch_html
+from src.jobs.ingestion.scrapper.http_client import fetch_source_html
 from src.jobs.ingestion.scrapper.job_extractor import extract_job_items_html, extract_jobs_for_source
 from src.jobs.ingestion.scrapper.selector_config import (
     is_source_config_complete,
@@ -21,7 +21,7 @@ def collect_jobs_html_by_source() -> Dict[str, List[str]]:
         source_name = source["source_name"]
         entry_url = source_entry_url(source)
         LOGGER.info("Crawling source %s from %s", source_name, entry_url)
-        html = fetch_html(entry_url)
+        html = fetch_source_html(source, entry_url)
         jobs_html.setdefault(source_name, []).extend(extract_job_items_html(source, html))
     return jobs_html
 
@@ -62,7 +62,7 @@ def run_ingestion_pipeline() -> List[Dict[str, Optional[str]]]:
         source_name = source["source_name"]
         entry_url = source_entry_url(source)
         LOGGER.info("Crawling source %s from %s", source_name, entry_url)
-        html = fetch_html(entry_url)
+        html = fetch_source_html(source, entry_url)
         html_items = extract_job_items_html(source, html)
 
         source_config = get_source_config_for_crawled_source(source, html_items, config_by_source)

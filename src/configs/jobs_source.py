@@ -38,12 +38,28 @@ def _build_jobs_source():
                 #     "entry_point": 'div.text-card-foreground:has(> div.relative img[alt="job-image"]):has(a[href^="/viec-lam/"])',
                 #     "detail_entry_point": 'div:has(span:-soup-contains("Your role & responsibilities")):has(span:-soup-contains("Your skills & qualifications")):has(span:-soup-contains("Benefits"))',
                 # },
+                # {
+                #     "source_name": "itviet",
+                #     "role": role,
+                #     "url": f"https://itviec.com/it-jobs/{role_slug}",
+                #     "entry_point": ".job-card",
+                #     "detail_entry_point": '.preview-job-content'
+                # }
+                # {
+                #     "source_name": "topCV",
+                #     "scraper": "bypass",
+                #     "role": role,
+                #     "url": f"https://www.topcv.vn/tim-viec-lam-software-engineer?page=2",
+                #     "entry_point": ".job-item-search-result",
+                #     "detail_entry_point": ".job-detail__information-detail"
+                # }
                 {
-                    "source_name": "itviet",
+                    "source_name": "jobsgo",
+                    "scraper": "bypass",
                     "role": role,
-                    "url": f"https://itviec.com/it-jobs/{role_slug}",
-                    "entry_point": ".job-card",
-                    "detail_entry_point": '.preview-job-content'
+                    "url": f"https://jobsgo.vn/viec-lam-software-engineer.html",
+                    "entry_point": ".card.job-card",
+                    "detail_entry_point": ".job-detail-card"
                 }
             ]
         )

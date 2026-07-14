@@ -75,6 +75,8 @@ docker_config = {
         'CRAWLER_REQUEST_DELAY_MAX_SECONDS': os.getenv('CRAWLER_REQUEST_DELAY_MAX_SECONDS', '7'),
         'CRAWLER_PROXY_SWITCH_INTERVAL': os.getenv('CRAWLER_PROXY_SWITCH_INTERVAL', '100'),
         'CRAWLER_PROXIES': os.getenv('CRAWLER_PROXIES', ''),
+        'BYPASS_HTML_SERVER_URL': os.getenv('BYPASS_HTML_SERVER_URL', 'http://internal_server:8000/html'),
+        'BYPASS_HTML_REQUEST_TIMEOUT_SECONDS': os.getenv('BYPASS_HTML_REQUEST_TIMEOUT_SECONDS', '120'),
 
         # Paths
         'BUCKET': BUCKET,

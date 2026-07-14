@@ -3,7 +3,7 @@ from urllib.parse import urljoin
 
 from src.jobs.ingestion.scrapper.field_model import SCRAPER_FIELD_MODEL
 from src.jobs.ingestion.scrapper.html_parser import BeautifulSoup, extract_value_by_selector, select_elements
-from src.jobs.ingestion.scrapper.http_client import fetch_html
+from src.jobs.ingestion.scrapper.http_client import fetch_source_html
 from src.utils.logger import get_logger
 
 LOGGER = get_logger(__name__)
@@ -34,7 +34,7 @@ def fetch_job_detail_html(source: Dict[str, Any], job_url: Optional[str], prefix
         return None
 
     detail_url = urljoin(prefix_job_url or source.get("base_url", ""), job_url)
-    detail_html = fetch_html(detail_url)
+    detail_html = fetch_source_html(source, detail_url)
     if not detail_html:
         return None
 

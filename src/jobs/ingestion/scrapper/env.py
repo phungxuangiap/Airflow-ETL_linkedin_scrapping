@@ -61,3 +61,10 @@ def get_crawler_proxies() -> List[str]:
     load_env_file()
     raw_proxies = os.getenv("CRAWLER_PROXIES", "")
     return [proxy.strip() for proxy in raw_proxies.split(",") if proxy.strip()]
+
+
+def get_bypass_html_server_url() -> Optional[str]:
+    """Load the internal HTML fetch server endpoint used by scraper='bypass' sources."""
+    load_env_file()
+    server_url = os.getenv("BYPASS_HTML_SERVER_URL")
+    return server_url.strip() if server_url and server_url.strip() else None

@@ -314,9 +314,11 @@ def build_salary_match_sql(text_expression: str, default: str = "Unknown") -> st
 def build_date_posted_match_sql(date_expression: str, processed_at_expression: str) -> str:
     """Build a DuckDB expression normalizing absolute and relative posted dates to dd-mm-yyyy."""
     normalized_text = f"lower(trim(COALESCE({date_expression}, '')))"
-    minute_pattern = "([0-9]+)[\\s._/+:-]*(minutes?|mins?|min|phut|phút)[\\s._/+:-]*(ago|truoc|trước)"
-    hour_pattern = "([0-9]+)[\\s._/+:-]*(hours?|hrs?|hr|gio|giờ)[\\s._/+:-]*(ago|truoc|trước)"
-    day_pattern = "([0-9]+)[\\s._/+:-]*(days?|ngay|ngày)[\\s._/+:-]*(ago|truoc|trước)"
+    posted_prefix = "(dang|đăng|posted|post)[\\s._/+:-]*"
+    minute_pattern = f"({posted_prefix})?([0-9]+)[\\s._/+:-]*(minutes?|mins?|min|phut|phút)[\\s._/+:-]*(ago|truoc|trước)"
+    hour_pattern = f"({posted_prefix})?([0-9]+)[\\s._/+:-]*(hours?|hrs?|hr|gio|giờ)[\\s._/+:-]*(ago|truoc|trước)"
+    day_pattern = f"({posted_prefix})?([0-9]+)[\\s._/+:-]*(days?|ngay|ngày)[\\s._/+:-]*(ago|truoc|trước)"
+    week_pattern = f"({posted_prefix})?([0-9]+)[\\s._/+:-]*(weeks?|wks?|tuan|tuần)[\\s._/+:-]*(ago|truoc|trước)"
     today_pattern = "(^|[^[:alnum:]_])(today|just[\\s._/+:-]*now|new|hom[\\s._/+:-]*nay|hôm[\\s._/+:-]*nay|vua[\\s._/+:-]*xong|vừa[\\s._/+:-]*xong|moi[\\s._/+:-]*dang|mới[\\s._/+:-]*đăng)([^[:alnum:]_]|$)"
     yesterday_pattern = "(^|[^[:alnum:]_])(yesterday|hom[\\s._/+:-]*qua|hôm[\\s._/+:-]*qua)([^[:alnum:]_]|$)"
     return f"""
@@ -331,13 +333,16 @@ def build_date_posted_match_sql(date_expression: str, processed_at_expression: s
                             CASE
                                 WHEN regexp_matches({normalized_text}, '{minute_pattern}')
                                     THEN {processed_at_expression}
-                                        - TRY_CAST(regexp_extract({normalized_text}, '{minute_pattern}', 1) AS INTEGER) * INTERVAL '1 minute'
+                                        - TRY_CAST(regexp_extract({normalized_text}, '{minute_pattern}', 3) AS INTEGER) * INTERVAL '1 minute'
                                 WHEN regexp_matches({normalized_text}, '{hour_pattern}')
                                     THEN {processed_at_expression}
-                                        - TRY_CAST(regexp_extract({normalized_text}, '{hour_pattern}', 1) AS INTEGER) * INTERVAL '1 hour'
+                                        - TRY_CAST(regexp_extract({normalized_text}, '{hour_pattern}', 3) AS INTEGER) * INTERVAL '1 hour'
                                 WHEN regexp_matches({normalized_text}, '{day_pattern}')
                                     THEN {processed_at_expression}
-                                        - TRY_CAST(regexp_extract({normalized_text}, '{day_pattern}', 1) AS INTEGER) * INTERVAL '1 day'
+                                        - TRY_CAST(regexp_extract({normalized_text}, '{day_pattern}', 3) AS INTEGER) * INTERVAL '1 day'
+                                WHEN regexp_matches({normalized_text}, '{week_pattern}')
+                                    THEN {processed_at_expression}
+                                        - TRY_CAST(regexp_extract({normalized_text}, '{week_pattern}', 3) AS INTEGER) * INTERVAL '1 week'
                                 WHEN regexp_matches({normalized_text}, '{yesterday_pattern}')
                                     THEN {processed_at_expression} - INTERVAL '1 day'
                                 WHEN regexp_matches({normalized_text}, '{today_pattern}')

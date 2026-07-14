@@ -1,17 +1,23 @@
 import random
 import time
-from typing import Optional
+from typing import Any, Dict, Optional
 
 import requests
 
 from src.jobs.ingestion.scrapper.constants import (
+    BYPASS_HTML_REQUEST_TIMEOUT_SECONDS,
     PROXY_SWITCH_INTERVAL,
     REQUEST_DELAY_MAX_SECONDS,
     REQUEST_DELAY_MIN_SECONDS,
     REQUEST_HEADERS,
     REQUEST_TIMEOUT_SECONDS,
 )
-from src.jobs.ingestion.scrapper.env import get_crawler_proxies, get_float_env, get_int_env
+from src.jobs.ingestion.scrapper.env import (
+    get_bypass_html_server_url,
+    get_crawler_proxies,
+    get_float_env,
+    get_int_env,
+)
 from src.utils.logger import get_logger
 
 LOGGER = get_logger(__name__)
@@ -39,6 +45,49 @@ def fetch_html(url: str) -> Optional[str]:
         LOGGER.error("Request timeout for URL: %s", url)
     except requests.RequestException as exc:
         LOGGER.error("Request failed for URL %s: %s", url, exc)
+    return None
+
+
+def fetch_source_html(source: Dict[str, Any], url: str) -> Optional[str]:
+    """Fetch HTML for a source using its configured scraper strategy."""
+    if source.get("scraper") == "bypass":
+        return fetch_html_via_bypass_server(source, url)
+    return fetch_html(url)
+
+
+def fetch_html_via_bypass_server(source: Dict[str, Any], url: str) -> Optional[str]:
+    """Fetch target HTML through the configured internal HTML server."""
+    source_name = source.get("source_name", "unknown")
+    server_url = get_bypass_html_server_url()
+    if not server_url:
+        LOGGER.error("BYPASS_HTML_SERVER_URL is not configured; cannot fetch source %s via bypass server", source_name)
+        return None
+    if not url:
+        LOGGER.warning("Skip bypass fetching empty URL for source %s", source_name)
+        return None
+
+    _wait_between_fetches()
+    _next_crawler_request_number()
+    timeout = get_int_env("BYPASS_HTML_REQUEST_TIMEOUT_SECONDS", BYPASS_HTML_REQUEST_TIMEOUT_SECONDS)
+
+    try:
+        LOGGER.info("Fetching HTML via bypass server source=%s url=%s server=%s", source_name, url, server_url)
+        response = requests.get(server_url, params={"url": url}, timeout=timeout)
+        response.raise_for_status()
+        if not response.text.strip():
+            LOGGER.warning("Bypass server returned empty HTML for source=%s url=%s", source_name, url)
+            return None
+        LOGGER.info(
+            "Bypass server returned %s chars for source=%s url=%s",
+            len(response.text),
+            source_name,
+            url,
+        )
+        return response.text
+    except requests.Timeout:
+        LOGGER.error("Bypass server timeout for source=%s url=%s", source_name, url)
+    except requests.RequestException as exc:
+        LOGGER.error("Bypass server request failed for source=%s url=%s: %s", source_name, url, exc)
     return None
 
 

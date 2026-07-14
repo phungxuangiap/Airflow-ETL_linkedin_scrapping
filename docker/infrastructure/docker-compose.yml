@@ -59,6 +59,35 @@ services:
     networks:
       - data-pipeline-network
 
+  # Cloudflare bypass service
+  internal_server:
+    image: ghcr.io/sarperavci/cloudflarebypassforscraping:latest
+    container_name: cloudflare-bypass
+    expose:
+      - "8000"
+
+    environment:
+      WORKERS: "1"
+
+      CF_COOKIE_TTL_MINUTES: "20"
+
+      CF_MAX_CONCURRENT_BROWSERS: "2"
+
+      CF_MAX_SESSIONS: "64"
+
+      CLOAKBROWSER_AUTO_UPDATE: "false"
+
+      CF_IP_CHECK_ENABLED: "false"
+
+    shm_size: "2gb"
+
+    mem_limit: "4g"
+    cpus: 2.0
+
+    restart: unless-stopped
+
+    networks:
+      - data-pipeline-network
 volumes:
   minio_data:
     driver: local
