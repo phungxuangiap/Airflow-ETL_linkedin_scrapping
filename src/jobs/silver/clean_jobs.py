@@ -15,6 +15,7 @@ from src.constants.paths import BRONZE_API_DATA_PATH, BRONZE_CRAWLER_DATA_PATH
 from src.models.schema import SILVER_JOBS_SCHEMA, SILVER_COMPANIES_SCHEMA
 from src.jobs.silver.job_field_expressions import (
     build_canonical_field_fallback_sql,
+    build_date_posted_match_sql,
     build_employment_type_match_sql,
     build_experience_year_level_match_sql,
     build_first_keyword_match_sql,
@@ -92,19 +93,7 @@ def clean_scrapped_source_jobs(load_date: str = None) -> Dict[str, pa.Table]:
                     )
                 )
         """
-        date_posted_expression = """
-                STRFTIME(
-                    COALESCE(
-                        TRY_CAST(NULLIF(TRIM(date_posted), '') AS DATE),
-                        CAST(TRY_STRPTIME(NULLIF(TRIM(date_posted), ''), '%d-%m-%Y') AS DATE),
-                        CAST(TRY_STRPTIME(NULLIF(TRIM(date_posted), ''), '%d/%m/%Y') AS DATE),
-                        CAST(TRY_STRPTIME(NULLIF(TRIM(date_posted), ''), '%Y-%m-%d') AS DATE),
-                        CAST(TRY_STRPTIME(NULLIF(TRIM(date_posted), ''), '%Y/%m/%d') AS DATE),
-                        CAST(processed_at_value AS DATE)
-                    ),
-                    '%d-%m-%Y'
-                )
-        """
+        date_posted_expression = build_date_posted_match_sql("date_posted", "processed_at_value")
 
         # Clean jobs data
         jobs_query = f"""

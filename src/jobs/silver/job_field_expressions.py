@@ -285,20 +285,68 @@ def build_canonical_field_fallback_sql(raw_expression: str, raw_match_expression
 def build_salary_match_sql(text_expression: str, default: str = "Unknown") -> str:
     """Build a DuckDB expression returning the first salary-like phrase matched in text."""
     normalized_text = f"lower(COALESCE({text_expression}, ''))"
+    amount = "[0-9]+([.,][0-9]+)?"
+    prefix = "(up[\\s._/+:-]*to|upto|from|to|tu|từ|den|đến)"
+    currency_prefix = "[$€£]"
+    range_separator = "(to|den|đến)"
+    salary_unit = "(usd|vnd|vnđ|trieu|triệu|million)"
     salary_pattern = (
-        "((up[\\s._/+:-]*to|upto|from|to|tu|từ|den|đến)?[\\s._/+:-]*"
-        "([$€£]|usd|vnd|vnđ|trieu|triệu|million|mil|m|k)?[\\s._/+:-]*"
-        "[0-9]+([.,][0-9]+)?"
-        "([\\s._/+:-]*(-|~|to|den|đến)[\\s._/+:-]*"
-        "([$€£]|usd|vnd|vnđ|trieu|triệu|million|mil|m|k)?[\\s._/+:-]*"
-        "[0-9]+([.,][0-9]+)?)?"
-        "[\\s._/+:-]*(usd|vnd|vnđ|trieu|triệu|million|mil|m|k|month|monthly|thang|tháng)?"
+        f"(({prefix}[\\s._/+:-]*({currency_prefix}[\\s._/+:-]*)?{amount}"
+        f"([\\s._/+:-]*{range_separator}[\\s._/+:-]*({currency_prefix}[\\s._/+:-]*)?{amount})?"
+        f"([\\s._/+:-]*{salary_unit})?"
+        f"|{currency_prefix}[\\s._/+:-]*{amount}"
+        f"([\\s._/+:-]*{range_separator}[\\s._/+:-]*({currency_prefix}[\\s._/+:-]*)?{amount})?"
+        f"([\\s._/+:-]*{salary_unit})?"
+        f"|{amount}[\\s._/+:-]*{salary_unit}"
+        f"([\\s._/+:-]*{range_separator}[\\s._/+:-]*({currency_prefix}[\\s._/+:-]*)?{amount}[\\s._/+:-]*{salary_unit}?)?"
+        f"|{amount}[\\s._/+:-]*{range_separator}[\\s._/+:-]*({currency_prefix}[\\s._/+:-]*)?{amount}"
+        f"([\\s._/+:-]*{salary_unit})?"
         "|negotiable|competitive|thoa[\\s._/+:-]*thuan|thỏa[\\s._/+:-]*thuận)"
     )
     return f"""
                 COALESCE(
                     NULLIF(regexp_extract({normalized_text}, '{salary_pattern}', 0), ''),
                     '{default}'
+                )
+    """
+
+
+def build_date_posted_match_sql(date_expression: str, processed_at_expression: str) -> str:
+    """Build a DuckDB expression normalizing absolute and relative posted dates to dd-mm-yyyy."""
+    normalized_text = f"lower(trim(COALESCE({date_expression}, '')))"
+    minute_pattern = "([0-9]+)[\\s._/+:-]*(minutes?|mins?|min|phut|phút)[\\s._/+:-]*(ago|truoc|trước)"
+    hour_pattern = "([0-9]+)[\\s._/+:-]*(hours?|hrs?|hr|gio|giờ)[\\s._/+:-]*(ago|truoc|trước)"
+    day_pattern = "([0-9]+)[\\s._/+:-]*(days?|ngay|ngày)[\\s._/+:-]*(ago|truoc|trước)"
+    today_pattern = "(^|[^[:alnum:]_])(today|just[\\s._/+:-]*now|new|hom[\\s._/+:-]*nay|hôm[\\s._/+:-]*nay|vua[\\s._/+:-]*xong|vừa[\\s._/+:-]*xong|moi[\\s._/+:-]*dang|mới[\\s._/+:-]*đăng)([^[:alnum:]_]|$)"
+    yesterday_pattern = "(^|[^[:alnum:]_])(yesterday|hom[\\s._/+:-]*qua|hôm[\\s._/+:-]*qua)([^[:alnum:]_]|$)"
+    return f"""
+                STRFTIME(
+                    COALESCE(
+                        TRY_CAST(NULLIF(TRIM({date_expression}), '') AS DATE),
+                        CAST(TRY_STRPTIME(NULLIF(TRIM({date_expression}), ''), '%d-%m-%Y') AS DATE),
+                        CAST(TRY_STRPTIME(NULLIF(TRIM({date_expression}), ''), '%d/%m/%Y') AS DATE),
+                        CAST(TRY_STRPTIME(NULLIF(TRIM({date_expression}), ''), '%Y-%m-%d') AS DATE),
+                        CAST(TRY_STRPTIME(NULLIF(TRIM({date_expression}), ''), '%Y/%m/%d') AS DATE),
+                        CAST(
+                            CASE
+                                WHEN regexp_matches({normalized_text}, '{minute_pattern}')
+                                    THEN {processed_at_expression}
+                                        - TRY_CAST(regexp_extract({normalized_text}, '{minute_pattern}', 1) AS INTEGER) * INTERVAL '1 minute'
+                                WHEN regexp_matches({normalized_text}, '{hour_pattern}')
+                                    THEN {processed_at_expression}
+                                        - TRY_CAST(regexp_extract({normalized_text}, '{hour_pattern}', 1) AS INTEGER) * INTERVAL '1 hour'
+                                WHEN regexp_matches({normalized_text}, '{day_pattern}')
+                                    THEN {processed_at_expression}
+                                        - TRY_CAST(regexp_extract({normalized_text}, '{day_pattern}', 1) AS INTEGER) * INTERVAL '1 day'
+                                WHEN regexp_matches({normalized_text}, '{yesterday_pattern}')
+                                    THEN {processed_at_expression} - INTERVAL '1 day'
+                                WHEN regexp_matches({normalized_text}, '{today_pattern}')
+                                    THEN {processed_at_expression}
+                                ELSE {processed_at_expression}
+                            END AS DATE
+                        )
+                    ),
+                    '%d-%m-%Y'
                 )
     """
 
