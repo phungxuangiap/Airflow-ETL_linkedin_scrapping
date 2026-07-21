@@ -1,0 +1,4 @@
+services:
+  airflow-scheduler:
+    environment:
+      DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:?DEEPSEEK_API_KEY must be provided by the production deployment}

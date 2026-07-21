@@ -1,3 +1,6 @@
+from src.constants.job_fields import ROLE_LIST
+
+
 # Time to pause between scroll actions in seconds
 SCROLL_PAUSE_TIME = 0.5 
 
@@ -143,7 +146,3 @@ TECH_LIST = [
     'docker compose', 'swagger', 'openapi', 'protobuf', 'grpc', 'soap', 'xml', 'json',
     'yaml', 'toml', 'markdown', 'latex',
 ]
-
-ROLE_LIST = ['software', 'data', 'devops', 'qa', 'security', 'mobile', 'game', 'embedded', 'cloud', 'fullstack', 'frontend', 'backend',
-             'ai', 'ml', 'nlp', 'computer vision', 'analytics', 'business intelligence', 'database', 'infrastructure',
-             'network', 'support', 'business analyst', 'product manager', 'project manager', 'designer', 'product owner']

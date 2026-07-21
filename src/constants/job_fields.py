@@ -75,38 +75,154 @@ TECH_LIST = [
     'rabbitmq', 'kafka', 'activemq', 'aws sqs', 'pubsub', 'nats', 'zeromq', 'pulsar',
 ]
 
-# Role list
+# Canonical role labels stored in Silver/Gold and exposed to dashboards.
+# Keep genuinely different specializations separate. The order is the matching
+# priority, so specific roles must precede the generic "software" fallback.
 ROLE_LIST = [
-    'software engineer', 'software developer', 'web developer', 'fullstack developer',
-    'frontend developer', 'backend developer', 'software', 'fullstack', 'frontend', 'backend',
+    'technical lead', 'engineering manager', 'it manager',
 
-    'android developer', 'ios developer', 'flutter developer', 'react native developer',
-    'mobile developer', 'mobile',
+    'fullstack', 'frontend', 'backend', 'mobile', 'game', 'embedded',
+    'blockchain', 'salesforce',
 
-    'game developer', 'embedded software engineer', 'firmware engineer', 'game', 'embedded',
+    'data engineer', 'analytics engineer', 'data analyst', 'data science',
+    'business intelligence', 'database', 'deep learning', 'machine learning',
+    'computer vision', 'nlp', 'ai',
 
-    'big data engineer', 'data engineer', 'data analyst', 'data scientist',
-    'analytics engineer', 'business intelligence', 'bi developer', 'etl developer',
-    'database administrator', 'database developer', 'machine learning engineer',
-    'deep learning engineer', 'computer vision engineer', 'nlp engineer', 'ai engineer',
-    'data', 'analytics', 'database', 'computer vision', 'nlp', 'ai', 'ml',
+    'site reliability', 'devops', 'platform', 'solutions architect', 'cloud',
+    'infrastructure', 'system administrator', 'network',
 
-    'site reliability engineer', 'devops engineer', 'platform engineer', 'cloud architect',
-    'cloud engineer', 'solutions architect', 'infrastructure engineer', 'system administrator',
-    'linux administrator', 'network engineer', 'devops', 'sre', 'cloud', 'infrastructure', 'network',
+    'qa', 'security', 'it support',
 
-    'quality assurance engineer', 'automation tester', 'manual tester', 'performance tester',
-    'test engineer', 'qa engineer', 'qa',
+    'business analyst', 'system analyst', 'product manager', 'product owner',
+    'project manager', 'scrum master', 'designer',
 
-    'cybersecurity analyst', 'information security analyst', 'penetration tester',
-    'security engineer', 'soc analyst', 'security',
+    'sap consultant', 'erp consultant',
 
-    'technical support engineer', 'helpdesk technician', 'it support', 'support',
-    'business analyst', 'system analyst', 'product manager', 'product owner', 'project manager',
-    'scrum master', 'ui ux designer', 'designer',
+    'software'
+]
 
-    'technical lead', 'engineering manager', 'it manager', 'erp consultant', 'sap consultant',
-    'salesforce developer', 'blockchain developer'
+
+# Recognition aliases. All aliases in one group are persisted as its canonical
+# ROLE_LIST key, preventing synonymous titles from splitting dashboard metrics.
+ROLE_ALIASES = {
+    'technical lead': [
+        'technical lead', 'tech lead', 'software lead', 'engineering lead'
+    ],
+    'engineering manager': ['engineering manager', 'software engineering manager'],
+    'it manager': ['it manager', 'information technology manager'],
+
+    'fullstack': [
+        'fullstack developer', 'full stack developer', 'full-stack developer',
+        'fullstack engineer', 'full stack engineer', 'full-stack engineer', 'fullstack'
+    ],
+    'frontend': [
+        'frontend developer', 'front end developer', 'front-end developer',
+        'frontend engineer', 'front end engineer', 'front-end engineer', 'frontend'
+    ],
+    'backend': [
+        'backend developer', 'back end developer', 'back-end developer',
+        'backend engineer', 'back end engineer', 'back-end engineer', 'backend'
+    ],
+    'mobile': [
+        'android developer', 'android engineer', 'ios developer', 'ios engineer',
+        'flutter developer', 'flutter engineer', 'react native developer',
+        'react native engineer', 'mobile developer', 'mobile engineer', 'mobile'
+    ],
+    'game': ['game developer', 'game engineer', 'game programmer', 'game'],
+    'embedded': [
+        'embedded software engineer', 'embedded software developer',
+        'embedded engineer', 'embedded developer', 'firmware engineer',
+        'firmware developer', 'embedded'
+    ],
+    'blockchain': ['blockchain developer', 'blockchain engineer', 'blockchain'],
+    'salesforce': ['salesforce developer', 'salesforce engineer', 'salesforce'],
+
+    'data engineer': [
+        'big data engineer', 'data engineer', 'etl engineer', 'etl developer'
+    ],
+    'analytics engineer': ['analytics engineer'],
+    'data analyst': ['data analyst'],
+    'data science': ['data scientist', 'data science'],
+    'business intelligence': [
+        'business intelligence developer', 'business intelligence analyst',
+        'bi developer', 'bi analyst', 'business intelligence'
+    ],
+    'database': [
+        'database administrator', 'database developer', 'database engineer',
+        'database specialist', 'dba', 'database'
+    ],
+    'deep learning': ['deep learning engineer', 'deep learning'],
+    'machine learning': [
+        'machine learning engineer', 'machine learning developer', 'ml engineer',
+        'ml developer', 'machine learning'
+    ],
+    'computer vision': [
+        'computer vision engineer', 'computer vision developer', 'computer vision'
+    ],
+    'nlp': [
+        'natural language processing engineer', 'nlp engineer', 'nlp developer', 'nlp'
+    ],
+    'ai': [
+        'artificial intelligence engineer', 'ai engineer', 'ai developer',
+        'artificial intelligence', 'ai'
+    ],
+
+    'site reliability': ['site reliability engineer', 'site reliability', 'sre'],
+    'devops': ['devops engineer', 'devops developer', 'devops'],
+    'platform': ['platform engineer', 'platform developer', 'platform'],
+    'solutions architect': ['solutions architect', 'solution architect'],
+    'cloud': ['cloud architect', 'cloud engineer', 'cloud developer', 'cloud'],
+    'infrastructure': [
+        'infrastructure engineer', 'infrastructure architect', 'infrastructure'
+    ],
+    'system administrator': [
+        'linux administrator', 'system administrator', 'systems administrator', 'sysadmin'
+    ],
+    'network': [
+        'network engineer', 'network administrator', 'network architect', 'network'
+    ],
+
+    'qa': [
+        'quality assurance engineer', 'quality assurance analyst', 'qa engineer',
+        'qa analyst', 'automation tester', 'manual tester', 'performance tester',
+        'test automation engineer', 'test engineer', 'software tester', 'qa'
+    ],
+    'security': [
+        'cybersecurity analyst', 'cyber security analyst', 'information security analyst',
+        'penetration tester', 'security engineer', 'security analyst', 'soc analyst',
+        'cybersecurity', 'cyber security', 'security'
+    ],
+    'it support': [
+        'technical support engineer', 'helpdesk technician', 'help desk technician',
+        'it support engineer', 'it support specialist', 'it support'
+    ],
+
+    'business analyst': ['business analyst'],
+    'system analyst': ['systems analyst', 'system analyst'],
+    'product manager': ['product manager'],
+    'product owner': ['product owner'],
+    'project manager': ['project manager'],
+    'scrum master': ['scrum master'],
+    'designer': [
+        'ui ux designer', 'ui/ux designer', 'ux designer', 'ui designer',
+        'product designer', 'web designer', 'designer'
+    ],
+
+    'sap consultant': ['sap consultant'],
+    'erp consultant': ['erp consultant'],
+
+    'software': [
+        'software engineer', 'software developer', 'web developer', 'web engineer',
+        'application developer', 'application engineer', 'software'
+    ]
+}
+
+
+# Flat, priority-preserving list consumed by DuckDB's keyword matcher.
+ROLE_KEYWORDS = [
+    alias
+    for canonical_role in ROLE_LIST
+    for alias in ROLE_ALIASES[canonical_role]
 ]
 
 # Role slugs used to generate crawler source URLs.

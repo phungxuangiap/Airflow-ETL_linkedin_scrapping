@@ -31,11 +31,12 @@ jobs:
         env:
           EC2_HOST: ${{ secrets.EC2_HOST }}
           EC2_USER: ${{ secrets.EC2_USER }}
+          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
           PROJECT_DIR: /opt/linkedin-jobs-etl
           REPO_URL: https://github.com/phungxuangiap/Airflow-ETL_linkedin_scrapping.git
         run: |
           ssh "$EC2_USER@$EC2_HOST" \
-            "PROJECT_DIR='$PROJECT_DIR' REPO_URL='$REPO_URL' bash -s" << 'EOF'
+            "PROJECT_DIR='$PROJECT_DIR' REPO_URL='$REPO_URL' DEEPSEEK_API_KEY='$DEEPSEEK_API_KEY' bash -s" << 'EOF'
             set -e
 
             echo "🛑 Starting production shutdown..."

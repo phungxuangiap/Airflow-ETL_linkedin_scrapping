@@ -36,6 +36,34 @@ def build_first_keyword_match_sql(keyword_list, text_expression: str, default: s
     return f"COALESCE(NULLIF(({list_filter_expression})[1], ''), '{default}')"
 
 
+def build_canonical_role_match_sql(
+    keyword_list,
+    text_expression: str,
+    role_aliases,
+    default: str = "Unknown",
+) -> str:
+    """Match a role-title alias and return its canonical dashboard label."""
+    matched_alias_expression = build_first_keyword_match_sql(
+        keyword_list,
+        text_expression,
+        default,
+    )
+
+    alias_cases = []
+    for canonical_role, aliases in role_aliases.items():
+        escaped_role = canonical_role.replace("'", "''")
+        for alias in aliases:
+            escaped_alias = alias.replace("'", "''")
+            alias_cases.append(f"WHEN '{escaped_alias}' THEN '{escaped_role}'")
+
+    return f"""
+                CASE {matched_alias_expression}
+                    {' '.join(alias_cases)}
+                    ELSE '{default}'
+                END
+    """
+
+
 def build_employment_type_match_sql(keyword_list, text_expression: str, default: str = "Unknown") -> str:
     """Build a DuckDB expression returning the first canonical employment type matched in text."""
     normalized_text = f"lower(COALESCE({text_expression}, ''))"

@@ -6,7 +6,8 @@ from src.utils.logger import get_logger
 from src.utils.duckdb_client import DuckDBClient
 from src.constants.job_fields import (
     TECH_LIST,
-    ROLE_LIST,
+    ROLE_ALIASES,
+    ROLE_KEYWORDS,
     EMPLOYMENT_TYPES,
     LOCATION_TYPES,
     SENIORITY_LEVELS,
@@ -15,10 +16,10 @@ from src.constants.paths import BRONZE_API_DATA_PATH, BRONZE_CRAWLER_DATA_PATH
 from src.models.schema import SILVER_JOBS_SCHEMA, SILVER_COMPANIES_SCHEMA
 from src.jobs.silver.job_field_expressions import (
     build_canonical_field_fallback_sql,
+    build_canonical_role_match_sql,
     build_date_posted_match_sql,
     build_employment_type_match_sql,
     build_experience_year_level_match_sql,
-    build_first_keyword_match_sql,
     build_keyword_list_filter_sql,
     build_location_type_match_sql,
     build_salary_match_sql,
@@ -39,7 +40,11 @@ def clean_scrapped_source_jobs(load_date: str = None) -> Dict[str, pa.Table]:
     with DuckDBClient() as client:
         bronze_path = f"{BRONZE_CRAWLER_DATA_PATH}/load_date={load_date}/*.jsonl"
         techstacks_expression = build_keyword_list_filter_sql("tech_keywords", "description")
-        role_expression = build_first_keyword_match_sql("role_keywords", "title")
+        role_expression = build_canonical_role_match_sql(
+            "role_keywords",
+            "title",
+            ROLE_ALIASES,
+        )
         employment_type_fallback_expression = build_employment_type_match_sql(
             "employment_type_keywords",
             "description",
@@ -100,7 +105,7 @@ def clean_scrapped_source_jobs(load_date: str = None) -> Dict[str, pa.Table]:
             WITH keyword_lists AS (
                 SELECT
                     {TECH_LIST} AS tech_keywords,
-                    {ROLE_LIST} AS role_keywords,
+                    {ROLE_KEYWORDS} AS role_keywords,
                     {EMPLOYMENT_TYPES} AS employment_type_keywords,
                     {LOCATION_TYPES} AS location_type_keywords,
                     {SENIORITY_LEVELS} AS seniority_level_keywords,

@@ -143,7 +143,10 @@ compose_cmd -f docker/infrastructure/docker-compose.superset.yml up -d --force-r
 
 # Start Airflow
 echo "🚀 Starting Airflow services..."
-compose_cmd -f docker/airflow/docker-compose.yml up -d --force-recreate
+compose_cmd \
+    -f docker/airflow/docker-compose.yml \
+    -f docker/airflow/docker-compose.prod.yml \
+    up -d --force-recreate
 
 # Wait for services to be healthy
 echo "⏳ Waiting for services to be ready..."
