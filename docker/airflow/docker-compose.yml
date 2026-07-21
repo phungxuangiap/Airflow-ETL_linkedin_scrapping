@@ -93,6 +93,9 @@ services:
     <<: *airflow-common
     container_name: airflow-scheduler
     command: scheduler
+    environment:
+      <<: *airflow-common-env
+      DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:?DEEPSEEK_API_KEY must be provided at runtime}
     healthcheck:
       test: ["CMD", "curl", "--fail", "http://localhost:8974/health"]
       interval: 30s

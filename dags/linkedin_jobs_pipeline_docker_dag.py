@@ -62,7 +62,6 @@ docker_config = {
         'ICEBERG_WAREHOUSE_PATH': ICEBERG_WAREHOUSE_PATH,
 
         # AI Selector Configuration
-        'DEEPSEEK_API_KEY': os.getenv('DEEPSEEK_API_KEY', ''),
         'DEEPSEEK_API_URL': os.getenv('DEEPSEEK_API_URL', 'https://api.deepseek.com/chat/completions'),
         'DEEPSEEK_MODEL': os.getenv('DEEPSEEK_MODEL', 'deepseek-v4-pro'),
         'AI_REQUEST_TIMEOUT_SECONDS': os.getenv('AI_REQUEST_TIMEOUT_SECONDS', '90'),
@@ -83,6 +82,9 @@ docker_config = {
         'BRONZE_PATH': BRONZE_PATH,
         'SILVER_PATH': SILVER_PATH,
         'GOLD_PATH': GOLD_PATH,
+    },
+    'private_environment': {
+        'DEEPSEEK_API_KEY': os.getenv('DEEPSEEK_API_KEY', ''),
     },
 }
 

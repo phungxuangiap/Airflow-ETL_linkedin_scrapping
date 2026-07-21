@@ -255,20 +255,24 @@ class IcebergClient:
         if table is None:
             raise ValueError(f"Table {identifier} does not exist")
 
+        if unique_key not in data.column_names:
+            raise ValueError(f"Unique key {unique_key} does not exist in the input data")
+
+        if data.num_rows == 0:
+            logger.info(f"No rows to upsert into {identifier}")
+            return 0
+
         try:
-            # Get unique values from new data
-            unique_values = data.column(unique_key).to_pylist()
-            unique_values_str = ", ".join([f"'{v}'" for v in unique_values])
-
-            # Delete existing records with matching unique keys
-            delete_filter = f"{unique_key} IN ({unique_values_str})"
-            table.delete(delete_filter)
-            logger.info(f"Deleted existing records matching {unique_key} from {identifier}")
-
-            # Append new data
-            table.append(data)
+            result = table.upsert(df=data, join_cols=[unique_key])
             row_count = data.num_rows
-            logger.info(f"Upserted {row_count} rows to {identifier}")
+            logger.info(
+                "Upserted %s rows to %s using %s (%s updated, %s inserted)",
+                row_count,
+                identifier,
+                unique_key,
+                result.rows_updated,
+                result.rows_inserted,
+            )
             return row_count
         except Exception as e:
             logger.error(f"Failed to upsert data to {identifier}: {e}")

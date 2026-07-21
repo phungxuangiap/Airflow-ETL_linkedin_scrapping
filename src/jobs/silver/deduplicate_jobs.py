@@ -15,7 +15,7 @@ def deduplicate_jobs(jobs_table: pa.Table) -> pa.Table:
     df = jobs_table.to_pandas()
 
     # Remove duplicates based on job_url, keeping the first occurrence
-    df_deduped = df.drop_duplicates(subset=['job_url'], keep='first')
+    df_deduped = df.drop_duplicates(subset=['job_url', 'company_id', 'date_posted'], keep='first')
 
     # Convert back to PyArrow
     deduped_table = pa.Table.from_pandas(df_deduped, schema=jobs_table.schema)
