@@ -55,7 +55,7 @@ def _write_jobs_to_jsonl(jobs: List[Dict[str, Any]], base_path: str, filename_pr
 
 def extract_and_stage_scrapped_jobs(load_date: str, **context) -> Dict[str, Any]:
     try:
-        from src.jobs.ingestion.scrapper import run_ingestion_pipeline
+        from src.jobs.ingestion.scrapper.pipeline import run_ingestion_pipeline
 
         logger.info("Extracting scrapped jobs...")
         jobs = run_ingestion_pipeline()

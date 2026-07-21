@@ -216,6 +216,7 @@ log.txt*
 # Legacy Provider-related ignores
 /airflow/providers/__init__.py
 __init__.py
+!src/jobs/ingestion/scrapper/__init__.py
 
 # Docker context files
 /docker-context-files/*

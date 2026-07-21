@@ -3,7 +3,7 @@ from datetime import datetime, timedelta
 from airflow import DAG
 from airflow.operators.python import PythonOperator
 
-from src.jobs.ingestion.scrapper import run_ingestion_pipeline
+from src.jobs.ingestion.scrapper.pipeline import run_ingestion_pipeline
 
 
 def test_ingestion_logic():
