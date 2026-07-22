@@ -31,6 +31,26 @@ from src.jobs.silver.job_field_expressions import (
 logger = get_logger(__name__)
 
 
+# Keep the Bronze reader's schema stable when a scrape produces an empty JSONL
+# file or when every record omits an optional field. Without explicit columns,
+# read_json_auto cannot expose the missing field and expressions such as
+# CAST(title AS VARCHAR) AS title are bound as circular alias references.
+SCRAPPED_JOBS_JSON_COLUMNS_SQL = """{
+    title: 'VARCHAR',
+    company: 'VARCHAR',
+    source_name: 'VARCHAR',
+    company_location: 'VARCHAR',
+    location_working_type: 'VARCHAR',
+    working_type: 'VARCHAR',
+    date_posted: 'VARCHAR',
+    description: 'VARCHAR',
+    job_url: 'VARCHAR',
+    salary: 'VARCHAR',
+    level: 'VARCHAR',
+    number_applicants: 'VARCHAR'
+}"""
+
+
 def clean_scrapped_source_jobs(load_date: str = None) -> Dict[str, pa.Table]:
     if load_date is None:
         load_date = datetime.now().strftime("%Y-%m-%d")
@@ -138,7 +158,12 @@ def clean_scrapped_source_jobs(load_date: str = None) -> Dict[str, pa.Table]:
                     CAST(salary AS VARCHAR) AS salary,
                     CAST(level AS VARCHAR) AS level,
                     CAST(number_applicants AS VARCHAR) AS number_applicants
-                FROM read_json_auto('{bronze_path}', ignore_errors=true, format='newline_delimited')
+                FROM read_json_auto(
+                    '{bronze_path}',
+                    columns={SCRAPPED_JOBS_JSON_COLUMNS_SQL},
+                    ignore_errors=true,
+                    format='newline_delimited'
+                )
             ) raw_jobs
             CROSS JOIN keyword_lists
         """
@@ -159,7 +184,12 @@ def clean_scrapped_source_jobs(load_date: str = None) -> Dict[str, pa.Table]:
                 SELECT
                     CAST(company AS VARCHAR) AS company,
                     CAST(company_location AS VARCHAR) AS company_location
-                FROM read_json_auto('{bronze_path}', ignore_errors=true, format='newline_delimited')
+                FROM read_json_auto(
+                    '{bronze_path}',
+                    columns={SCRAPPED_JOBS_JSON_COLUMNS_SQL},
+                    ignore_errors=true,
+                    format='newline_delimited'
+                )
             ) raw_companies
         """
 
